@@ -23,7 +23,7 @@ public class SecurityConfig {
     private final AuthenticationProvider authenticationProvider;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    public SecurityConfig (
+    public SecurityConfig(
             AuthenticationProvider authenticationProvider,
             JwtAuthenticationFilter jwtAuthenticationFilter
     ) {
@@ -32,7 +32,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain (HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(auth -> auth
@@ -45,7 +45,7 @@ public class SecurityConfig {
         return http.build();
     }
     @Bean
-    public CorsConfigurationSource corsConfigurationSource () {
+    public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of("http://localhost:4200"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));

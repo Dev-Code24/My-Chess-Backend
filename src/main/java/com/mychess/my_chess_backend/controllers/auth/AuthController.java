@@ -33,7 +33,7 @@ public class AuthController {
     }
 
     @PostMapping("/signup")
-    public ResponseEntity<BasicResponseDTO<RegisteredUserDTO>> signUp (
+    public ResponseEntity<BasicResponseDTO<RegisteredUserDTO>> signUp(
             @RequestBody RegisteringUserDTO user,
             HttpServletRequest req
     ) {
@@ -56,7 +56,7 @@ public class AuthController {
         );
     }
     @PostMapping("/login")
-    public ResponseEntity<BasicResponseDTO<AuthenticatedUserDTO>> login (
+    public ResponseEntity<BasicResponseDTO<AuthenticatedUserDTO>> login(
             @RequestBody AuthenticatingUserDTO user,
             HttpServletRequest req
     ) {

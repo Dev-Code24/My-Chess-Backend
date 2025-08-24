@@ -16,7 +16,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
 
-    public AuthService (
+    public AuthService(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
             AuthenticationManager authenticationManager
@@ -26,17 +26,19 @@ public class AuthService {
         this.authenticationManager = authenticationManager;
     }
 
-    public User signUp (RegisteringUserDTO user) {
+    public User signUp(RegisteringUserDTO user) {
         User newUser = new User()
                 .setUsername(user.getUsername())
                 .setEmail(user.getEmail())
                 .setPassword(this.passwordEncoder.encode(user.getPassword()));
 
-        if (user.getAuthProvider() == null || user.getAuthProvider() == AuthProvider.LOCAL) { newUser.setAuthProvider(AuthProvider.LOCAL); }
+        if (user.getAuthProvider() == null || user.getAuthProvider() == AuthProvider.LOCAL) {
+            newUser.setAuthProvider(AuthProvider.LOCAL);
+        }
 
         return this.userRepository.save(newUser);
     }
-    public User authenticate (AuthenticatingUserDTO user) {
+    public User authenticate(AuthenticatingUserDTO user) {
         this.authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(user.getEmail(), user.getPassword())
         );

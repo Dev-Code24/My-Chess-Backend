@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserController {
 
     @GetMapping("/me")
-    public ResponseEntity<BasicResponseDTO<AuthenticatedUserDTO>> getUser (HttpServletRequest req) {
+    public ResponseEntity<BasicResponseDTO<AuthenticatedUserDTO>> getUser(HttpServletRequest req) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User user = (User) authentication.getPrincipal();
 
