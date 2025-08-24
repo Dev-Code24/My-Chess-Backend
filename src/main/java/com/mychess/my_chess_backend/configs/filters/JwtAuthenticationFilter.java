@@ -26,7 +26,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JWTService jwtService;
     private final UserDetailsService userDetailsService;
 
-    public JwtAuthenticationFilter (
+    public JwtAuthenticationFilter(
             HandlerExceptionResolver handlerExceptionResolver,
             JWTService jwtService,
             UserDetailsService userDetailsService
@@ -37,7 +37,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal (
+    protected void doFilterInternal(
             HttpServletRequest req,
             HttpServletResponse res,
             FilterChain filterChain
@@ -50,12 +50,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 .map(Cookie::getValue)
                 .findFirst().orElse(null);
 
-            if (jwt == null) {
-                filterChain.doFilter(req, res);
-                return;
-            }
-
-            if (this.jwtService.isTokenExpired(jwt)) {
+            if (jwt == null || this.jwtService.isTokenExpired(jwt)) {
                 filterChain.doFilter(req, res);
                 return;
             }
