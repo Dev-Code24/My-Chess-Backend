@@ -3,8 +3,6 @@ package com.mychess.my_chess_backend.controllers.user;
 import com.mychess.my_chess_backend.dtos.responses.BasicResponseDTO;
 import com.mychess.my_chess_backend.dtos.responses.auth.AuthenticatedUserDTO;
 import com.mychess.my_chess_backend.models.User;
-import com.mychess.my_chess_backend.services.auth.AuthService;
-import com.mychess.my_chess_backend.services.auth.JWTService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,7 +25,7 @@ public class UserController {
                 "success",
                 HttpStatus.OK.value(),
                 new AuthenticatedUserDTO(user.getUsername(), user.getEmail()),
-                req.getRequestURL().toString()
+                req.getRequestURI()
                 )
         );
     }

@@ -9,6 +9,7 @@ import com.mychess.my_chess_backend.models.User;
 import com.mychess.my_chess_backend.services.auth.AuthService;
 import com.mychess.my_chess_backend.services.auth.JWTService;
 import com.mychess.my_chess_backend.utils.GeneratorUtility;
+import com.mychess.my_chess_backend.utils.MyChessErrorHandler;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -37,38 +38,45 @@ public class AuthController {
             @RequestBody RegisteringUserDTO user,
             HttpServletRequest req
     ) {
-        // TODO: Search what is actually sent in selfLink property in production backends
+        try {
+            // TODO: Search what is actually sent in selfLink property in production backends
+            String username = user.getUsername();
+            if (username == null || username.isBlank()) {
+                user.setUsername(GeneratorUtility.createUsernameFromEmail(user.getEmail()));
+            }
 
-        String username = user.getUsername();
-        if (username == null || username.isBlank()) {
-            user.setUsername(GeneratorUtility.createUsernameFromEmail(user.getEmail()));
+            User newUser = this.authService.signUp(user);
+
+            return this.issueTokensAndRespond(newUser, () ->
+                    new BasicResponseDTO<>(
+                            "success",
+                            HttpStatus.OK.value(),
+                            new RegisteredUserDTO(newUser.getEmail(), newUser.getUsername()),
+                            req.getRequestURI()
+                    )
+            );
+        } catch (Exception exception) {
+            return MyChessErrorHandler.exceptionHandler("Could not signup. Try again later !", req.getRequestURI());
         }
-
-        User newUser = this.authService.signUp(user);
-
-        return this.issueTokensAndRespond(newUser, () ->
-                new BasicResponseDTO<>(
-                        "success",
-                        HttpStatus.OK.value(),
-                        new RegisteredUserDTO(newUser.getEmail(), newUser.getUsername()),
-                        req.getRequestURL().toString()
-                )
-        );
     }
     @PostMapping("/login")
     public ResponseEntity<BasicResponseDTO<AuthenticatedUserDTO>> login(
             @RequestBody AuthenticatingUserDTO user,
             HttpServletRequest req
     ) {
-        User authenticatedUser = this.authService.authenticate(user);
-        return this.issueTokensAndRespond(authenticatedUser, () ->
-                new BasicResponseDTO<>(
-                        "success",
-                        HttpStatus.OK.value(),
-                        new AuthenticatedUserDTO(authenticatedUser.getEmail(), authenticatedUser.getUsername()),
-                        req.getRequestURL().toString()
-                )
-        );
+        try {
+            User authenticatedUser = this.authService.authenticate(user);
+            return this.issueTokensAndRespond(authenticatedUser, () ->
+                    new BasicResponseDTO<>(
+                            "success",
+                            HttpStatus.OK.value(),
+                            new AuthenticatedUserDTO(authenticatedUser.getEmail(), authenticatedUser.getUsername()),
+                            req.getRequestURI()
+                    )
+            );
+        } catch (Exception exception) {
+            return MyChessErrorHandler.exceptionHandler("Could not login. Try again later !", req.getRequestURI());
+        }
     }
 
     private <T> ResponseEntity<T> issueTokensAndRespond (
@@ -80,7 +88,7 @@ public class AuthController {
                 .httpOnly(true)
                 .secure(false)
                 .path("/")
-                .sameSite("Lax")
+                .sameSite("Lax") // Change this before deploying to prod
                 .maxAge(Duration.ofSeconds(this.jwtService.getJwtExpiration().toSeconds()))
                 .build();
         T body = bodyFactory.get();
