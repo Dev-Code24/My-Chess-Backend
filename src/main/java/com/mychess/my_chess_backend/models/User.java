@@ -3,7 +3,10 @@ package com.mychess.my_chess_backend.models;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.mychess.my_chess_backend.utils.enums.AuthProvider;
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
@@ -17,8 +20,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
-@Getter
-@Setter
+@Data
 @Accessors(chain = true)
 @NoArgsConstructor
 @AllArgsConstructor
