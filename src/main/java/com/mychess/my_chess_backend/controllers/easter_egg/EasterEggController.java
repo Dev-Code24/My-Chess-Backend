@@ -16,7 +16,7 @@ public class EasterEggController {
         if (authentication != null &&
                 authentication.isAuthenticated() &&
                 authentication.getPrincipal() instanceof User
-        ) { string = ((User) authentication.getPrincipal()).getUsername();}
+        ) { string = ((User) authentication.getPrincipal()).getUsername(); }
 
         return "HELLO " + string;
     }

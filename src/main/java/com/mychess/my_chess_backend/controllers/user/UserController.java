@@ -22,10 +22,13 @@ public class UserController {
         User user = (User) authentication.getPrincipal();
 
         return ResponseEntity.ok(new BasicResponseDTO<>(
-                "success",
-                HttpStatus.OK.value(),
-                new AuthenticatedUserDTO(user.getUsername(), user.getEmail()),
-                req.getRequestURI()
+                        "success",
+                        HttpStatus.OK.value(),
+                        new AuthenticatedUserDTO()
+                                .setEmail(user.getEmail())
+                                .setUsername(user.getUsername())
+                                .setInGame(user.getInGame()),
+                        req.getRequestURI()
                 )
         );
     }

@@ -56,7 +56,7 @@ public class AuthController {
                     )
             );
         } catch (Exception exception) {
-            return MyChessErrorHandler.exceptionHandler("Could not signup. Try again later !", req.getRequestURI());
+            return MyChessErrorHandler.exceptionHandler(exception.getMessage(), req.getRequestURI());
         }
     }
     @PostMapping("/login")
@@ -70,12 +70,15 @@ public class AuthController {
                     new BasicResponseDTO<>(
                             "success",
                             HttpStatus.OK.value(),
-                            new AuthenticatedUserDTO(authenticatedUser.getEmail(), authenticatedUser.getUsername()),
+                            new AuthenticatedUserDTO(
+                                    authenticatedUser.getEmail(),
+                                    authenticatedUser.getUsername(),
+                                    authenticatedUser.getInGame()),
                             req.getRequestURI()
                     )
             );
         } catch (Exception exception) {
-            return MyChessErrorHandler.exceptionHandler("Could not login. Try again later !", req.getRequestURI());
+            return MyChessErrorHandler.exceptionHandler(exception.getMessage(), req.getRequestURI());
         }
     }
 
