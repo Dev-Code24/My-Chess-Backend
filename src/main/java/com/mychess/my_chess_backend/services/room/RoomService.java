@@ -1,9 +1,9 @@
 package com.mychess.my_chess_backend.services.room;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mychess.my_chess_backend.dtos.requests.room.PieceMovedDTO;
 import com.mychess.my_chess_backend.dtos.responses.auth.AuthenticatedUserDTO;
 import com.mychess.my_chess_backend.dtos.responses.room.RoomDTO;
+import com.mychess.my_chess_backend.dtos.shared.PieceMoved;
 import com.mychess.my_chess_backend.models.Room;
 import com.mychess.my_chess_backend.models.User;
 import com.mychess.my_chess_backend.repositories.RoomRepository;
@@ -171,7 +171,7 @@ public class RoomService {
         this.broadcastRoomUpdate(room.getCode(), data);
     }
 
-    public void pieceMoved(PieceMovedDTO pieceMoved, String code) {
+    public void pieceMoved(PieceMoved pieceMoved, String code) {
         try {
             this.broadcastRoomUpdate(code, this.objectMapper.writeValueAsString(pieceMoved));
         } catch (Exception e) {
