@@ -6,8 +6,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.Optional;
-
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -17,6 +15,6 @@ public class Piece {
     private byte row;
     private ChessPieceColor color;
     private ChessPiece type;
-    private Optional<Boolean> enPassantAvailable;
+    private Boolean enPassantAvailable;
     private boolean hasMoved;
 }

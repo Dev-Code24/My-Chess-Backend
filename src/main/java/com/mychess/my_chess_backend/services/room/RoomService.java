@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mychess.my_chess_backend.dtos.responses.auth.AuthenticatedUserDTO;
 import com.mychess.my_chess_backend.dtos.responses.room.RoomDTO;
 import com.mychess.my_chess_backend.dtos.shared.PieceMoved;
+import com.mychess.my_chess_backend.dtos.shared.Position;
 import com.mychess.my_chess_backend.models.Room;
 import com.mychess.my_chess_backend.models.User;
 import com.mychess.my_chess_backend.repositories.RoomRepository;
@@ -172,6 +173,8 @@ public class RoomService {
     }
 
     public void pieceMoved(PieceMoved pieceMoved, String code) {
+        Position to = pieceMoved.getTo();
+        pieceMoved.setTo(new Position((byte) (7 - to.getRow()), to.getCol()));
         try {
             this.broadcastRoomUpdate(code, this.objectMapper.writeValueAsString(pieceMoved));
         } catch (Exception e) {
@@ -182,7 +185,7 @@ public class RoomService {
 
     public SseEmitter subscribeToRoomUpdates(String code) {
         SseEmitter emitter = new SseEmitter((long) Integer.MAX_VALUE);
-        this.roomSubscribers.computeIfAbsent(code, (key) -> new ArrayList<>()).add(emitter);
+        this.roomSubscribers.computeIfAbsent(code, (_) -> new ArrayList<>()).add(emitter);
         emitter.onCompletion(() -> this.removeRoomSubscriber(code, emitter));
         emitter.onTimeout(() -> {
             emitter.complete();

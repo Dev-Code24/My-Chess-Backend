@@ -7,9 +7,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class PieceMoved {
-    private Piece piece;
-    private Position to;
-    private Piece targetPiece;
-    private Move move;
+public class Position {
+    private byte row;
+    private byte col;
 }

@@ -4,16 +4,14 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.Optional;
-
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 public class Move {
     private boolean valid;
-    private Optional<Piece> capture;
-    private Optional<Boolean> promotion;
-    private Optional<String> castling;
-    private Optional<String> reason;
-    private Optional<Boolean> enPassant;
+    private Piece capture;
+    private Boolean promotion;
+    private String castling;
+    private String reason;
+    private Boolean enPassant;
 }
