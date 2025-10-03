@@ -20,6 +20,7 @@ public class RoomDTO {
     private RoomStatus roomStatus;
     private GameStatus gameStatus;
     private String code;
+    private String fen;
     private LocalDateTime lastActivity;
     private AuthenticatedUserDTO whitePlayer;
     private AuthenticatedUserDTO blackPlayer;

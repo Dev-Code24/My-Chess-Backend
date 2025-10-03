@@ -1,5 +1,6 @@
 package com.mychess.my_chess_backend.models;
 
+import com.mychess.my_chess_backend.dtos.shared.PieceDetails;
 import com.mychess.my_chess_backend.utils.enums.GameStatus;
 import com.mychess.my_chess_backend.utils.enums.RoomStatus;
 import jakarta.persistence.*;
@@ -35,8 +36,10 @@ public class Room {
     @Enumerated(EnumType.STRING)
     private GameStatus gameStatus;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, length = 6)
     private String code;
+    @Column(nullable = false, length = 100)
+    private String fen;
 
     private UUID whitePlayer;
     private UUID blackPlayer;

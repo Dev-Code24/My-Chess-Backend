@@ -1,5 +1,6 @@
 package com.mychess.my_chess_backend.services.room;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mychess.my_chess_backend.dtos.responses.auth.AuthenticatedUserDTO;
 import com.mychess.my_chess_backend.dtos.responses.room.RoomDTO;
@@ -28,6 +29,7 @@ public class RoomService {
     private final ObjectMapper objectMapper;
 
     private static final String CHARACTERS = "abcdefghijklmnopqrstuvwxyz0123456789";
+    private static final String DEFAULT_CHESSBOARD_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
     private static final int CODE_LENGTH = 6;
     private static final Random random = new Random();
     private final Map<String, List<SseEmitter>> roomSubscribers = new ConcurrentHashMap<>();
@@ -48,6 +50,7 @@ public class RoomService {
     public RoomDTO createRoom(User whitePlayer) {
         Room newRoom = Room.builder()
                 .code(this.generateUniqueRoomId())
+                .fen(DEFAULT_CHESSBOARD_FEN)
                 .whitePlayer(whitePlayer.getId())
                 .roomStatus(RoomStatus.AVAILABLE)
                 .gameStatus(GameStatus.WAITING)
@@ -57,18 +60,17 @@ public class RoomService {
         whitePlayer.setInGame(true);
         this.roomRepository.save(newRoom);
         this.userService.updateUser(whitePlayer);
-        return new RoomDTO()
-                .setId(newRoom.getId())
-                .setCode(newRoom.getCode())
-                .setWhitePlayer(new AuthenticatedUserDTO(
-                        whitePlayer.getEmail(),
-                        whitePlayer.getUsername(),
-                        whitePlayer.getInGame()
-                ))
-                .setRoomStatus(newRoom.getRoomStatus())
-                .setGameStatus(newRoom.getGameStatus())
-                .setLastActivity(newRoom.getLastActivity())
-                .setBlackPlayer(null);
+        // Trying sending only the room code, when creating a room
+        return new RoomDTO().setCode(newRoom.getCode());
+//                .setWhitePlayer(new AuthenticatedUserDTO(
+//                        whitePlayer.getEmail(),
+//                        whitePlayer.getUsername(),
+//                        whitePlayer.getInGame()
+//                ))
+//                .setRoomStatus(newRoom.getRoomStatus())
+//                .setGameStatus(newRoom.getGameStatus())
+//                .setLastActivity(newRoom.getLastActivity())
+//                .setBlackPlayer(null);
     }
 
     public RoomDTO joinRoom(User blackPlayer, String code) {
@@ -81,7 +83,7 @@ public class RoomService {
             UUID existingBlackPlayer = currentRoom.getBlackPlayer();
             if (
                     existingBlackPlayer != null &&
-                            !existingBlackPlayer.equals(blackPlayer.getId())
+                    !existingBlackPlayer.equals(blackPlayer.getId())
             ) { return null; }
 
             currentRoom.setBlackPlayer(blackPlayer.getId())
@@ -96,10 +98,11 @@ public class RoomService {
             this.userService.updateUser(whitePlayer);
 
             RoomDTO roomDto = new RoomDTO()
+                    .setCode(currentRoom.getCode())
+                    .setFen(currentRoom.getFen())
                     .setId(currentRoom.getId())
                     .setRoomStatus(currentRoom.getRoomStatus())
                     .setGameStatus(currentRoom.getGameStatus())
-                    .setCode(currentRoom.getCode())
                     .setLastActivity(currentRoom.getLastActivity())
                     .setWhitePlayer(
                             new AuthenticatedUserDTO(
@@ -157,9 +160,10 @@ public class RoomService {
             }
             return new RoomDTO()
                     .setId(room.getId())
+                    .setCode(room.getCode())
+                    .setFen(room.getFen())
                     .setRoomStatus(room.getRoomStatus())
                     .setGameStatus(room.getGameStatus())
-                    .setCode(room.getCode())
                     .setLastActivity(room.getLastActivity())
                     .setWhitePlayer(whitePlayerDTO)
                     .setBlackPlayer(blackPlayerDTO);
@@ -172,19 +176,22 @@ public class RoomService {
         this.broadcastRoomUpdate(room.getCode(), data);
     }
 
-    public void pieceMoved(PieceMoved pieceMoved, String code) {
+    public void pieceMoved(PieceMoved pieceMoved, String code) throws Exception {
         Position to = pieceMoved.getTo();
-        pieceMoved.setTo(new Position((byte) (7 - to.getRow()), to.getCol()));
-        try {
+        Room room = this.roomRepository.findByCode(code).orElse(null);
+        if (room != null) {
+//            StringBuilder sb = new StringBuilder(this.updateFen(room.getFen()));
+            pieceMoved.setTo(new Position((byte) (7 - to.getRow()), to.getCol()));
             this.broadcastRoomUpdate(code, this.objectMapper.writeValueAsString(pieceMoved));
-        } catch (Exception e) {
-            // TODO: think of better error handling
-            e.printStackTrace();
+
+        } else {
+            throw new Exception("Room does not exist");
         }
     }
 
     public SseEmitter subscribeToRoomUpdates(String code) {
         SseEmitter emitter = new SseEmitter((long) Integer.MAX_VALUE);
+        System.out.println("------- New client subscribed -------");
         this.roomSubscribers.computeIfAbsent(code, (_) -> new ArrayList<>()).add(emitter);
         emitter.onCompletion(() -> this.removeRoomSubscriber(code, emitter));
         emitter.onTimeout(() -> {

@@ -74,20 +74,24 @@ public class RoomController {
         }
     }
 
-    @PostMapping("/{code}")
+    @PostMapping("/move/{code}")
     public ResponseEntity<BasicResponseDTO<String>> pieceMoved(
             @PathVariable String code,
             @RequestBody PieceMoved pieceMoved,
             HttpServletRequest req
     ) {
-        // Use service to broadcast to room
-        this.roomService.pieceMoved(pieceMoved, code);
-        return ResponseEntity.ok(new BasicResponseDTO<>(
-                "success",
-                HttpStatus.OK.value(),
-                "Updated Piece",
-                req.getRequestURI()
-        ));
+        try {
+            // Use service to broadcast to room
+            this.roomService.pieceMoved(pieceMoved, code);
+            return ResponseEntity.ok(new BasicResponseDTO<>(
+                    "success",
+                    HttpStatus.OK.value(),
+                    "Updated Piece",
+                    req.getRequestURI()
+            ));
+        } catch (Exception exception) {
+            return MyChessErrorHandler.exceptionHandler(exception.getMessage(), req.getRequestURI());
+        }
     }
 
     @GetMapping("/{code}")
