@@ -16,6 +16,6 @@ public class MoveDetails {
     private Boolean promotion;
     private ChessPiece promotionType;
     private String castling;
-    private String reason;
+    private String situation;
     private Boolean enPassant;
 }

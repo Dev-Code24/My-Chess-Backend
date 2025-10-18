@@ -188,6 +188,7 @@ public class RoomService {
                 piece.setRow(finalTargetRow);
                 piece.setCol(targetPosition.getCol());
                 piece.setHasMoved(true);
+                piece.setEnPassantAvailable(movedPiece.getEnPassantAvailable());
                 break;
             }
         }
@@ -197,7 +198,7 @@ public class RoomService {
             capturedPieces = CapturedPieceUtil.recordCapture(room.getCapturedPieces(), move.getTargetPiece());
         }
 
-        String newFen = FenUtils.piecesToFen(pieces, FenUtils.getNextTurn(room.getFen()));
+        String newFen = FenUtils.piecesToFen(pieces, room.getFen());
         room.setFen(newFen);
         if (capturedPieces != null) {
             room.setCapturedPieces(capturedPieces);

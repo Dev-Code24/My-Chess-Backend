@@ -41,7 +41,8 @@ public class FenUtils {
         return pieces;
     }
 
-    public static String piecesToFen(List<Piece> pieces, String turn) {
+    public static String piecesToFen(List<Piece> pieces, String oldFen) {
+        String nextTurn = getNextTurn(oldFen);
         char[][] board = new char[8][8];
         for (char[] row : board) Arrays.fill(row, ' ');
 
@@ -65,7 +66,25 @@ public class FenUtils {
             if (empty > 0) fen.append(empty);
             if (row < 7) fen.append('/');
         }
-        fen.append(" ").append(turn).append(" ").append("KQkq - 0 1");
+
+        String enPassantTarget = "-";
+        for (Piece piece : pieces) {
+            if ("pawn".equals(piece.getType()) && Boolean.TRUE == piece.getEnPassantAvailable()) {
+                int rowBehind = piece.getColor().equals("w")
+                        ? piece.getRow() + 1
+                        : piece.getRow() - 1;
+                int file = piece.getCol(); // 0 = a, 7 = h
+                enPassantTarget = (char) ('a' + file) + String.valueOf(8 - rowBehind);
+                break; // only one pawn can have en-passant availability
+            }
+        }
+        fen.append(" ")
+                .append(nextTurn)        // whose turn
+                .append(" ")
+                .append("KQkq")          // castling rights placeholder
+                .append(" ")
+                .append(enPassantTarget) // ← en-passant field
+                .append(" 0 1");         // half/full move placeholders
         return fen.toString();
     }
 

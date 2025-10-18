@@ -53,7 +53,6 @@ public class MoveUtils {
                     .orElse(null);
 
             if (rook != null) {
-                // Check path clear
                 boolean pathClear = true;
                 int colStep = kingside ? 1 : -1;
                 for (int c = king.getCol() + colStep; c != rookStartCol; c += colStep) {
