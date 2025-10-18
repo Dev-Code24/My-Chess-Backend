@@ -3,7 +3,7 @@ package com.mychess.my_chess_backend.controllers.room;
 import com.mychess.my_chess_backend.dtos.requests.room.JoiningRoomDTO;
 import com.mychess.my_chess_backend.dtos.responses.BasicResponseDTO;
 import com.mychess.my_chess_backend.dtos.responses.room.RoomDTO;
-import com.mychess.my_chess_backend.dtos.shared.PieceMoved;
+import com.mychess.my_chess_backend.dtos.shared.Move;
 import com.mychess.my_chess_backend.models.User;
 import com.mychess.my_chess_backend.services.room.RoomService;
 import com.mychess.my_chess_backend.utils.MyChessErrorHandler;
@@ -77,12 +77,11 @@ public class RoomController {
     @PostMapping("/move/{code}")
     public ResponseEntity<BasicResponseDTO<String>> pieceMoved(
             @PathVariable String code,
-            @RequestBody PieceMoved pieceMoved,
+            @RequestBody Move move,
             HttpServletRequest req
     ) {
         try {
-            // Use service to broadcast to room
-            this.roomService.pieceMoved(pieceMoved, code);
+            this.roomService.move(move, code);
             return ResponseEntity.ok(new BasicResponseDTO<>(
                     "success",
                     HttpStatus.OK.value(),

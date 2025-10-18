@@ -1,15 +1,19 @@
 package com.mychess.my_chess_backend.services.room;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mychess.my_chess_backend.dtos.responses.auth.AuthenticatedUserDTO;
+import com.mychess.my_chess_backend.dtos.responses.room.PieceMovedResponseDTO;
 import com.mychess.my_chess_backend.dtos.responses.room.RoomDTO;
-import com.mychess.my_chess_backend.dtos.shared.PieceMoved;
+import com.mychess.my_chess_backend.dtos.shared.MoveDetails;
+import com.mychess.my_chess_backend.dtos.shared.Piece;
+import com.mychess.my_chess_backend.dtos.shared.Move;
 import com.mychess.my_chess_backend.dtos.shared.Position;
 import com.mychess.my_chess_backend.models.Room;
 import com.mychess.my_chess_backend.models.User;
 import com.mychess.my_chess_backend.repositories.RoomRepository;
 import com.mychess.my_chess_backend.services.user.UserService;
+import com.mychess.my_chess_backend.utils.FenUtils;
+import com.mychess.my_chess_backend.utils.MoveUtils;
 import com.mychess.my_chess_backend.utils.enums.GameStatus;
 import com.mychess.my_chess_backend.utils.enums.RoomStatus;
 import org.springframework.stereotype.Service;
@@ -30,10 +34,9 @@ public class RoomService {
 
     private static final String CHARACTERS = "abcdefghijklmnopqrstuvwxyz0123456789";
     private static final String DEFAULT_CHESSBOARD_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-    private static final int CODE_LENGTH = 6;
+    private static final int ROOM_CODE_LENGTH = 6;
     private static final Random random = new Random();
     private final Map<String, List<SseEmitter>> roomSubscribers = new ConcurrentHashMap<>();
-
 
     public RoomService(
             RoomRepository roomRepository,
@@ -60,17 +63,7 @@ public class RoomService {
         whitePlayer.setInGame(true);
         this.roomRepository.save(newRoom);
         this.userService.updateUser(whitePlayer);
-        // Trying sending only the room code, when creating a room
         return new RoomDTO().setCode(newRoom.getCode());
-//                .setWhitePlayer(new AuthenticatedUserDTO(
-//                        whitePlayer.getEmail(),
-//                        whitePlayer.getUsername(),
-//                        whitePlayer.getInGame()
-//                ))
-//                .setRoomStatus(newRoom.getRoomStatus())
-//                .setGameStatus(newRoom.getGameStatus())
-//                .setLastActivity(newRoom.getLastActivity())
-//                .setBlackPlayer(null);
     }
 
     public RoomDTO joinRoom(User blackPlayer, String code) {
@@ -129,7 +122,6 @@ public class RoomService {
             this.broadcastRoomUpdate(currentRoom.getCode(), roomDtoJson);
             return roomDto;
         }
-
         return null;
     }
 
@@ -176,22 +168,40 @@ public class RoomService {
         this.broadcastRoomUpdate(room.getCode(), data);
     }
 
-    public void pieceMoved(PieceMoved pieceMoved, String code) throws Exception {
-        Position to = pieceMoved.getTo();
-        Room room = this.roomRepository.findByCode(code).orElse(null);
-        if (room != null) {
-//            StringBuilder sb = new StringBuilder(this.updateFen(room.getFen()));
-            pieceMoved.setTo(new Position((byte) (7 - to.getRow()), to.getCol()));
-            this.broadcastRoomUpdate(code, this.objectMapper.writeValueAsString(pieceMoved));
+    public void move(Move move, String code) throws Exception {
+        Room room = this.roomRepository.findByCode(code).orElseThrow(() -> new Exception("Sorry the room does not exist"));
+        Piece movedPiece = move.getPiece();
+        Position targetPosition = move.getTo();
+        List<Piece> pieces = MoveUtils.handleMove(FenUtils.parseFenToPieces(room.getFen()), move);
 
-        } else {
-            throw new Exception("Room does not exist");
+        for (Piece piece : pieces) {
+            if (piece.getId().equals(movedPiece.getId())) {
+                byte finalTargetRow = targetPosition.getRow();
+                if (piece.getColor().equals("w")) {
+                    finalTargetRow = (byte) (7 - targetPosition.getRow());
+                }
+                piece.setRow(finalTargetRow);
+                piece.setCol(targetPosition.getCol());
+                piece.setHasMoved(true);
+                break;
+            }
         }
+
+        String newFen = FenUtils.piecesToFen(pieces, FenUtils.getNextTurn(room.getFen()));
+        room.setFen(newFen);
+        room.setLastActivity(LocalDateTime.now());
+
+        PieceMovedResponseDTO responseDTO = new PieceMovedResponseDTO()
+                .setMoveDetails(move)
+                .setFen(newFen);
+
+        this.broadcastRoomUpdate(code, this.objectMapper.writeValueAsString(responseDTO));
+        this.roomRepository.save(room);
     }
 
     public SseEmitter subscribeToRoomUpdates(String code) {
         SseEmitter emitter = new SseEmitter((long) Integer.MAX_VALUE);
-        System.out.println("------- New client subscribed -------");
+        System.out.println("------- New person subscribed -------");
         this.roomSubscribers.computeIfAbsent(code, (_) -> new ArrayList<>()).add(emitter);
         emitter.onCompletion(() -> this.removeRoomSubscriber(code, emitter));
         emitter.onTimeout(() -> {
@@ -246,7 +256,7 @@ public class RoomService {
         Optional<Room> existingRoom;
         do {
             StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < CODE_LENGTH; i++) {
+            for (int i = 0; i < ROOM_CODE_LENGTH; i++) {
                 sb.append(CHARACTERS.charAt(random.nextInt(CHARACTERS.length())));
             }
             code = sb.toString();
