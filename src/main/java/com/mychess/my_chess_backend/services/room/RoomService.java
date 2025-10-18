@@ -12,6 +12,7 @@ import com.mychess.my_chess_backend.models.Room;
 import com.mychess.my_chess_backend.models.User;
 import com.mychess.my_chess_backend.repositories.RoomRepository;
 import com.mychess.my_chess_backend.services.user.UserService;
+import com.mychess.my_chess_backend.utils.CapturedPieceUtil;
 import com.mychess.my_chess_backend.utils.FenUtils;
 import com.mychess.my_chess_backend.utils.MoveUtils;
 import com.mychess.my_chess_backend.utils.enums.GameStatus;
@@ -34,6 +35,7 @@ public class RoomService {
 
     private static final String CHARACTERS = "abcdefghijklmnopqrstuvwxyz0123456789";
     private static final String DEFAULT_CHESSBOARD_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    private static final String DEFAULT_CAPTURED_PIECES = "r0n0b0q0p0k0/R0N0B0Q0P0K0";
     private static final int ROOM_CODE_LENGTH = 6;
     private static final Random random = new Random();
     private final Map<String, List<SseEmitter>> roomSubscribers = new ConcurrentHashMap<>();
@@ -54,6 +56,7 @@ public class RoomService {
         Room newRoom = Room.builder()
                 .code(this.generateUniqueRoomId())
                 .fen(DEFAULT_CHESSBOARD_FEN)
+                .capturedPieces(DEFAULT_CAPTURED_PIECES)
                 .whitePlayer(whitePlayer.getId())
                 .roomStatus(RoomStatus.AVAILABLE)
                 .gameStatus(GameStatus.WAITING)
@@ -93,6 +96,7 @@ public class RoomService {
             RoomDTO roomDto = new RoomDTO()
                     .setCode(currentRoom.getCode())
                     .setFen(currentRoom.getFen())
+                    .setCapturedPieces(currentRoom.getCapturedPieces())
                     .setId(currentRoom.getId())
                     .setRoomStatus(currentRoom.getRoomStatus())
                     .setGameStatus(currentRoom.getGameStatus())
@@ -153,6 +157,7 @@ public class RoomService {
             return new RoomDTO()
                     .setId(room.getId())
                     .setCode(room.getCode())
+                    .setCapturedPieces(room.getCapturedPieces())
                     .setFen(room.getFen())
                     .setRoomStatus(room.getRoomStatus())
                     .setGameStatus(room.getGameStatus())
@@ -187,8 +192,16 @@ public class RoomService {
             }
         }
 
+        String capturedPieces = null;
+        if (move.getMoveDetails().getCapture() != null) {
+            capturedPieces = CapturedPieceUtil.recordCapture(room.getCapturedPieces(), move.getTargetPiece());
+        }
+
         String newFen = FenUtils.piecesToFen(pieces, FenUtils.getNextTurn(room.getFen()));
         room.setFen(newFen);
+        if (capturedPieces != null) {
+            room.setCapturedPieces(capturedPieces);
+        }
         room.setLastActivity(LocalDateTime.now());
 
         PieceMovedResponseDTO responseDTO = new PieceMovedResponseDTO()

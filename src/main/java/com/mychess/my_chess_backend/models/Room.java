@@ -40,6 +40,8 @@ public class Room {
     private String code;
     @Column(nullable = false, length = 100)
     private String fen;
+    @Column(nullable = false)
+    private String capturedPieces;
 
     private UUID whitePlayer;
     private UUID blackPlayer;

@@ -21,6 +21,7 @@ public class RoomDTO {
     private GameStatus gameStatus;
     private String code;
     private String fen;
+    private String capturedPieces;
     private LocalDateTime lastActivity;
     private AuthenticatedUserDTO whitePlayer;
     private AuthenticatedUserDTO blackPlayer;
