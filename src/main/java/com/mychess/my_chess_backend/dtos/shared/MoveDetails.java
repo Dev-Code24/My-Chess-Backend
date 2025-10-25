@@ -12,7 +12,8 @@ import lombok.experimental.Accessors;
 @NoArgsConstructor
 public class MoveDetails {
     private boolean valid;
-    private Piece capture;
+    private Piece targetPiece;
+    private Piece promotedPiece;
     private Boolean promotion;
     private ChessPiece promotionType;
     private String castling;

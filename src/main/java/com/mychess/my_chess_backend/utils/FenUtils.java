@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Objects;
 
 public class FenUtils {
+    public static final String DEFAULT_CHESSBOARD_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
     public static List<Piece> parseFenToPieces(String fen) {
         List<Piece> pieces = new ArrayList<>();
         String[] parts = fen.split(" ");
@@ -25,8 +27,9 @@ public class FenUtils {
                             ChessPieceColor.WHITE.getValue() :
                             ChessPieceColor.BLACK.getValue();
                     String type = ChessPiece.fromFenChar(Character.toLowerCase(c)).getValue();
+                    String pieceId = color + '-' + type + '-' + col;
                     pieces.add(new Piece(
-                            color + "-" + type + "-" + col,
+                            pieceId,
                             (byte) col,
                             (byte) (7 - row),
                             color,
@@ -41,8 +44,7 @@ public class FenUtils {
         return pieces;
     }
 
-    public static String piecesToFen(List<Piece> pieces, String oldFen) {
-        String nextTurn = getNextTurn(oldFen);
+    public static String piecesToFen(List<Piece> pieces, String nextTurn) {
         char[][] board = new char[8][8];
         for (char[] row : board) Arrays.fill(row, ' ');
 
@@ -73,17 +75,17 @@ public class FenUtils {
                 int rowBehind = piece.getColor().equals("w")
                         ? piece.getRow() + 1
                         : piece.getRow() - 1;
-                int file = piece.getCol(); // 0 = a, 7 = h
+                int file = piece.getCol();
                 enPassantTarget = (char) ('a' + file) + String.valueOf(8 - rowBehind);
-                break; // only one pawn can have en-passant availability
+                break;
             }
         }
         fen.append(" ")
-                .append(nextTurn)        // whose turn
+                .append(nextTurn)
                 .append(" ")
                 .append("KQkq")          // castling rights placeholder
                 .append(" ")
-                .append(enPassantTarget) // ← en-passant field
+                .append(enPassantTarget)
                 .append(" 0 1");         // half/full move placeholders
         return fen.toString();
     }

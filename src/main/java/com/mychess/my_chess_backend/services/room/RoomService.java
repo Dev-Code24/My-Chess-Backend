@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mychess.my_chess_backend.dtos.responses.auth.AuthenticatedUserDTO;
 import com.mychess.my_chess_backend.dtos.responses.room.PieceMovedResponseDTO;
 import com.mychess.my_chess_backend.dtos.responses.room.RoomDTO;
-import com.mychess.my_chess_backend.dtos.shared.MoveDetails;
 import com.mychess.my_chess_backend.dtos.shared.Piece;
 import com.mychess.my_chess_backend.dtos.shared.Move;
 import com.mychess.my_chess_backend.dtos.shared.Position;
@@ -34,7 +33,6 @@ public class RoomService {
     private final ObjectMapper objectMapper;
 
     private static final String CHARACTERS = "abcdefghijklmnopqrstuvwxyz0123456789";
-    private static final String DEFAULT_CHESSBOARD_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
     private static final String DEFAULT_CAPTURED_PIECES = "r0n0b0q0p0k0/R0N0B0Q0P0K0";
     private static final int ROOM_CODE_LENGTH = 6;
     private static final Random random = new Random();
@@ -55,7 +53,7 @@ public class RoomService {
     public RoomDTO createRoom(User whitePlayer) {
         Room newRoom = Room.builder()
                 .code(this.generateUniqueRoomId())
-                .fen(DEFAULT_CHESSBOARD_FEN)
+                .fen(FenUtils.DEFAULT_CHESSBOARD_FEN)
                 .capturedPieces(DEFAULT_CAPTURED_PIECES)
                 .whitePlayer(whitePlayer.getId())
                 .roomStatus(RoomStatus.AVAILABLE)
@@ -177,8 +175,8 @@ public class RoomService {
         Room room = this.roomRepository.findByCode(code).orElseThrow(() -> new Exception("Sorry the room does not exist"));
         Piece movedPiece = move.getPiece();
         Position targetPosition = move.getTo();
-        List<Piece> pieces = MoveUtils.handleMove(FenUtils.parseFenToPieces(room.getFen()), move);
 
+        List<Piece> pieces = MoveUtils.handleMove(FenUtils.parseFenToPieces(room.getFen()), move);
         for (Piece piece : pieces) {
             if (piece.getId().equals(movedPiece.getId())) {
                 byte finalTargetRow = targetPosition.getRow();
@@ -192,13 +190,19 @@ public class RoomService {
                 break;
             }
         }
-
         String capturedPieces = null;
-        if (move.getMoveDetails().getCapture() != null) {
-            capturedPieces = CapturedPieceUtil.recordCapture(room.getCapturedPieces(), move.getTargetPiece());
+        if (move.getMoveDetails().getTargetPiece() != null) {
+            capturedPieces = CapturedPieceUtil.recordCapture(
+                                room.getCapturedPieces(),
+                                move.getMoveDetails().getTargetPiece()
+                            );
         }
 
-        String newFen = FenUtils.piecesToFen(pieces, room.getFen());
+        String nextTurn = FenUtils.getNextTurn(room.getFen());
+        if (move.getMoveDetails().getPromotion() == Boolean.TRUE && move.getMoveDetails().getPromotedPiece() != null) {
+            nextTurn = FenUtils.getTurn(room.getFen());
+        }
+        String newFen = FenUtils.piecesToFen(pieces, nextTurn);
         room.setFen(newFen);
         if (capturedPieces != null) {
             room.setCapturedPieces(capturedPieces);
@@ -206,7 +210,7 @@ public class RoomService {
         room.setLastActivity(LocalDateTime.now());
 
         PieceMovedResponseDTO responseDTO = new PieceMovedResponseDTO()
-                .setMoveDetails(move)
+                .setMove(move)
                 .setFen(newFen);
 
         this.broadcastRoomUpdate(code, this.objectMapper.writeValueAsString(responseDTO));

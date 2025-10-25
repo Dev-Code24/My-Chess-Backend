@@ -5,6 +5,7 @@ import com.mychess.my_chess_backend.dtos.shared.MoveDetails;
 import com.mychess.my_chess_backend.dtos.shared.Piece;
 import com.mychess.my_chess_backend.dtos.shared.Position;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class MoveUtils {
@@ -12,20 +13,40 @@ public class MoveUtils {
     public static List<Piece> handleMove(List<Piece> pieces, Move move) {
         MoveDetails moveDetails = move.getMoveDetails();
         Position targetPosition = move.getTo();
-        Piece targetPiece = move.getTargetPiece();
-
-        if (moveDetails.getCapture() != null) {
-            return handlePieceCapture(pieces, targetPiece);
+        if (moveDetails.getTargetPiece() != null) {
+            return handlePieceCapture(pieces, moveDetails.getTargetPiece());
         } else if (moveDetails.getCastling() != null) {
            return handleCastling(pieces, targetPosition, move.getPiece(), move.getMoveDetails());
+        } else if (Boolean.TRUE == moveDetails.getPromotion() && move.getMoveDetails().getPromotedPiece() != null) {
+            return handlePawnPromotion(pieces, move);
         }
 
         return pieces;
     }
 
     private static List<Piece> handlePieceCapture(List<Piece> pieces, Piece targetPiece) {
-        pieces.removeIf(piece -> piece.getId().equals(targetPiece.getId()));
-        return pieces;
+        List<Piece> newPieces = new ArrayList<>(pieces);
+        newPieces.removeIf(piece -> piece.getId().equals(targetPiece.getId()));
+        return newPieces;
+    }
+
+    private static List<Piece> handlePawnPromotion(List<Piece> pieces, Move move) {
+        List<Piece> newPieces = new ArrayList<>(pieces);
+        Piece pawn = move.getPiece();
+        Piece promotedPiece = move.getMoveDetails().getPromotedPiece().toBuilder().build();
+        Position to = move.getTo();
+        newPieces.removeIf(p -> p.getId().equals(pawn.getId()));
+
+        byte newRow = to.getRow();
+        if (pawn.getColor().equals("w")) {
+            newRow = (byte) (7 - to.getRow());
+        }
+
+        promotedPiece.setRow(newRow);
+        promotedPiece.setCol(to.getCol());
+        newPieces.add(promotedPiece);
+        System.out.println("✅ Pawn promoted: " + pawn.getId() + " → " + promotedPiece.getType());
+        return newPieces;
     }
 
     private static List<Piece> handleCastling(
@@ -34,6 +55,7 @@ public class MoveUtils {
             Piece king,
             MoveDetails moveDetails
     ) {
+        List<Piece> newPieces = new ArrayList<>(pieces);
         int rowDiff = targetPosition.getRow() - king.getRow();
         int colDiff = targetPosition.getCol() - king.getCol();
         // Castling detected: same row, 2-col move
@@ -43,7 +65,7 @@ public class MoveUtils {
             int rookTargetCol = kingside ? 5 : 3;
 
             // Find rook
-            Piece rook = pieces.stream()
+            Piece rook = newPieces.stream()
                     .filter(p -> "rook".equals(p.getType())
                             && p.getColor().equals(king.getColor())
                             && p.getRow() ==  king.getRow() - 7
@@ -57,7 +79,7 @@ public class MoveUtils {
                 int colStep = kingside ? 1 : -1;
                 for (int c = king.getCol() + colStep; c != rookStartCol; c += colStep) {
                     final int col = c;
-                    if (pieces.stream().anyMatch(p -> p.getRow() == king.getRow() && p.getCol() == col)) {
+                    if (newPieces.stream().anyMatch(p -> p.getRow() == king.getRow() && p.getCol() == col)) {
                         pathClear = false;
                         break;
                     }
@@ -76,6 +98,6 @@ public class MoveUtils {
             }
         }
 
-        return pieces;
+        return newPieces;
     }
 }

@@ -11,6 +11,6 @@ import lombok.experimental.Accessors;
 @AllArgsConstructor
 @NoArgsConstructor
 public class PieceMovedResponseDTO {
-    private Move moveDetails;
+    private Move move;
     private String fen;
 }

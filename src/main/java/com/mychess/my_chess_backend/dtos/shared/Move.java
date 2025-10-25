@@ -12,6 +12,5 @@ import lombok.experimental.Accessors;
 public class Move {
     private Piece piece;
     private Position to;
-    private Piece targetPiece;
     private MoveDetails moveDetails;
 }
