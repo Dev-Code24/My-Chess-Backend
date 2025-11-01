@@ -1,5 +1,6 @@
-package com.mychess.my_chess_backend.dtos.requests.room;
+package com.mychess.my_chess_backend.dtos.responses.room;
 
+import com.mychess.my_chess_backend.dtos.shared.Move;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -9,8 +10,7 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 @AllArgsConstructor
 @NoArgsConstructor
-public class JoinedRoomDTO {
-    private String roomId;
-    private String whitePlayer;
-    private String blackPlayer;
+public class PieceMovedResponseDTO {
+    private Move move;
+    private String fen;
 }

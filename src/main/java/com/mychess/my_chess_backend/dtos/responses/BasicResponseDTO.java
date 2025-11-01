@@ -9,7 +9,6 @@ import java.time.Instant;
 @AllArgsConstructor
 public class BasicResponseDTO<Data> {
     private final Instant timestamp = Instant.now();
-
     private String message;
     private int status;
     private Data data;

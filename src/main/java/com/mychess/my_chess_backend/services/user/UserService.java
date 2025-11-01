@@ -15,8 +15,22 @@ public class UserService {
         this.userRepository = userRepository;
     }
 
-    public String getUsernameById(UUID userId) {
-        Optional<User> user = this.userRepository.findById(userId);
+    public String getUsernameById(UUID id) {
+        Optional<User> user = this.userRepository.findById(id);
         return user.map(User::getUsername).orElse(null);
+    }
+
+    public User getUserById(UUID id) {
+        Optional<User> user = this.userRepository.findById(id);
+        return user.orElse(null);
+    }
+
+    public boolean updateUser(User user) {
+        try {
+            this.userRepository.save(user);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

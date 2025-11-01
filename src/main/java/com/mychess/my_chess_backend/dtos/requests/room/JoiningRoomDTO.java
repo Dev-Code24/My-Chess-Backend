@@ -8,5 +8,5 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class JoiningRoomDTO {
-    private String roomId;
+    private String code;
 }

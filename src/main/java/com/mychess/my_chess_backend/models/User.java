@@ -47,13 +47,13 @@ public class User implements UserDetails {
     private String password;
 
     @ColumnDefault("false")
-    private Boolean twoFactorEnabled = false;
+    private Boolean twoFactorEnabled;
 
     @ColumnDefault("false")
-    private Boolean isActive = false;
+    private Boolean isActive;
 
     @ColumnDefault("false")
-    private Boolean isInGame = false;
+    private Boolean inGame;
 
 //    private LocalDateTime lastActive;
 
