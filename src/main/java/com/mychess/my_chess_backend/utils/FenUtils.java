@@ -27,7 +27,7 @@ public class FenUtils {
                             ChessPieceColor.WHITE.getValue() :
                             ChessPieceColor.BLACK.getValue();
                     String type = ChessPiece.fromFenChar(Character.toLowerCase(c)).getValue();
-                    String pieceId = color + '-' + type + '-' + col;
+                    String pieceId = color + '-' + type + '-' + row + '-' + col;
                     pieces.add(new Piece(
                             pieceId,
                             (byte) col,
@@ -52,6 +52,9 @@ public class FenUtils {
             int fenRow = 7 - piece.getRow();
             char symbol = ChessPiece.toFenChar(piece.getType(), piece.getColor());
             board[fenRow][piece.getCol()] = symbol;
+        }
+        for (int i = 0; i < 8; i++) {
+            System.out.println(Arrays.toString(board[i]));
         }
 
         StringBuilder fen = new StringBuilder();

@@ -175,7 +175,6 @@ public class RoomService {
         Room room = this.roomRepository.findByCode(code).orElseThrow(() -> new Exception("Sorry the room does not exist"));
         Piece movedPiece = move.getPiece();
         Position targetPosition = move.getTo();
-
         List<Piece> pieces = MoveUtils.handleMove(FenUtils.parseFenToPieces(room.getFen()), move);
         for (Piece piece : pieces) {
             if (piece.getId().equals(movedPiece.getId())) {
@@ -219,7 +218,7 @@ public class RoomService {
 
     public SseEmitter subscribeToRoomUpdates(String code) {
         SseEmitter emitter = new SseEmitter((long) Integer.MAX_VALUE);
-        System.out.println("------- New person subscribed -------");
+        System.out.println("------- New person subscribed -------" + this.roomSubscribers);
         this.roomSubscribers.computeIfAbsent(code, (_) -> new ArrayList<>()).add(emitter);
         emitter.onCompletion(() -> this.removeRoomSubscriber(code, emitter));
         emitter.onTimeout(() -> {
@@ -256,7 +255,12 @@ public class RoomService {
             try {
                 emitter.send(SseEmitter.event().data(data.toString() + "\n\n"));
             } catch (IOException e) {
+                System.out.println("------- Failed to send update, completing emitter with error -------");
                 emitter.completeWithError(e);
+                // The onError callback will handle cleanup
+            } catch (IllegalStateException e) {
+                // Emitter already completed, ignore
+                System.out.println("------- Attempted to send to already completed emitter -------");
             }
         });
     }

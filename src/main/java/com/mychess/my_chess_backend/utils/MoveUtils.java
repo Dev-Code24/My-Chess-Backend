@@ -45,7 +45,6 @@ public class MoveUtils {
         promotedPiece.setRow(newRow);
         promotedPiece.setCol(to.getCol());
         newPieces.add(promotedPiece);
-        System.out.println("✅ Pawn promoted: " + pawn.getId() + " → " + promotedPiece.getType());
         return newPieces;
     }
 
