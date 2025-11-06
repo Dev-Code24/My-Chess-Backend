@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 
 @Service
-public class RoomService {
+public class RoomService extends RoomServiceHelper {
     private final RoomRepository roomRepository;
     private final ExecutorService executorService;
     private final UserService userService;
@@ -51,7 +51,8 @@ public class RoomService {
     }
 
     public RoomDTO createRoom(User whitePlayer) {
-        Room newRoom = Room.builder()
+        Optional<Room> existingRoom = this.roomRepository.findRoomByUserId(whitePlayer.getId());
+        Room room = existingRoom.orElseGet(() -> Room.builder()
                 .code(this.generateUniqueRoomId())
                 .fen(FenUtils.DEFAULT_CHESSBOARD_FEN)
                 .capturedPieces(DEFAULT_CAPTURED_PIECES)
@@ -59,60 +60,45 @@ public class RoomService {
                 .roomStatus(RoomStatus.AVAILABLE)
                 .gameStatus(GameStatus.WAITING)
                 .lastActivity(LocalDateTime.now())
-                .build();
+                .build());
 
         whitePlayer.setInGame(true);
-        this.roomRepository.save(newRoom);
+        if (existingRoom.isEmpty()) {
+            this.roomRepository.save(room);
+        }
+        whitePlayer.setInGame(true);
         this.userService.updateUser(whitePlayer);
-        return new RoomDTO().setCode(newRoom.getCode());
+        return new RoomDTO().setCode(room.getCode());
     }
 
     public RoomDTO joinRoom(User blackPlayer, String code) {
-        Optional<Room> room = this.roomRepository.findByCode(code);
-        if (room.isPresent()) {
-            Room currentRoom = room.get();
+        Room existingRoom = this.roomRepository.findRoomByUserId(blackPlayer.getId()).orElse(null);
+        Room room = this.roomRepository.findByCode(code).orElse(null);
+        if (room != null) {
+            if (room.getWhitePlayer().equals(blackPlayer.getId())) {
+                return null;
+            }
+            if (existingRoom != null && !existingRoom.getCode().equals(room.getCode())) {
+                 return null;
+            }
 
-            if (currentRoom.getWhitePlayer().equals(blackPlayer.getId())) { return null; }
-
-            UUID existingBlackPlayer = currentRoom.getBlackPlayer();
+            UUID existingBlackPlayer = room.getBlackPlayer();
+            UUID whitePlayer = room.getWhitePlayer();
             if (
                     existingBlackPlayer != null &&
-                    !existingBlackPlayer.equals(blackPlayer.getId())
-            ) { return null; }
+                    (!existingBlackPlayer.equals(blackPlayer.getId()) || !whitePlayer.equals(blackPlayer.getId()))
+            ) {
+                return null;
+            }
 
-            currentRoom.setBlackPlayer(blackPlayer.getId())
+            room.setBlackPlayer(blackPlayer.getId())
                     .setRoomStatus(RoomStatus.OCCUPIED)
                     .setGameStatus(GameStatus.IN_PROGRESS);
 
             blackPlayer.setInGame(true);
-            User whitePlayer = this.userService.getUserById(currentRoom.getWhitePlayer());
-            whitePlayer.setInGame(true);
-
             this.userService.updateUser(blackPlayer);
-            this.userService.updateUser(whitePlayer);
 
-            RoomDTO roomDto = new RoomDTO()
-                    .setCode(currentRoom.getCode())
-                    .setFen(currentRoom.getFen())
-                    .setCapturedPieces(currentRoom.getCapturedPieces())
-                    .setId(currentRoom.getId())
-                    .setRoomStatus(currentRoom.getRoomStatus())
-                    .setGameStatus(currentRoom.getGameStatus())
-                    .setLastActivity(currentRoom.getLastActivity())
-                    .setWhitePlayer(
-                            new AuthenticatedUserDTO(
-                                    whitePlayer.getEmail(),
-                                    whitePlayer.getUsername(),
-                                    whitePlayer.getInGame()
-                            )
-                    )
-                    .setBlackPlayer(
-                            new AuthenticatedUserDTO(
-                                    blackPlayer.getEmail(),
-                                    blackPlayer.getUsername(),
-                                    blackPlayer.getInGame()
-                            )
-                    );
+            RoomDTO roomDto = new RoomDTO().setCode(room.getCode());
             // TODO: Add proper error handling
             String roomDtoJson = "";
             try {
@@ -120,8 +106,8 @@ public class RoomService {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-            this.updateRoom(currentRoom, "Opponent joined !");
-            this.broadcastRoomUpdate(currentRoom.getCode(), roomDtoJson);
+            this.updateRoom(room, "Opponent joined !");
+            this.broadcastRoomUpdate(room.getCode(), roomDtoJson);
             return roomDto;
         }
         return null;
@@ -172,48 +158,74 @@ public class RoomService {
     }
 
     public void move(Move move, String code) throws Exception {
-        Room room = this.roomRepository.findByCode(code).orElseThrow(() -> new Exception("Sorry the room does not exist"));
         Piece movedPiece = move.getPiece();
+        Piece targetPiece = move.getMoveDetails().getTargetPiece();
         Position targetPosition = move.getTo();
-        List<Piece> pieces = MoveUtils.handleMove(FenUtils.parseFenToPieces(room.getFen()), move);
-        for (Piece piece : pieces) {
-            if (piece.getId().equals(movedPiece.getId())) {
-                byte finalTargetRow = targetPosition.getRow();
-                if (piece.getColor().equals("w")) {
-                    finalTargetRow = (byte) (7 - targetPosition.getRow());
-                }
-                piece.setRow(finalTargetRow);
-                piece.setCol(targetPosition.getCol());
-                piece.setHasMoved(true);
-                piece.setEnPassantAvailable(movedPiece.getEnPassantAvailable());
-                break;
-            }
-        }
-        String capturedPieces = null;
-        if (move.getMoveDetails().getTargetPiece() != null) {
-            capturedPieces = CapturedPieceUtil.recordCapture(
-                                room.getCapturedPieces(),
-                                move.getMoveDetails().getTargetPiece()
-                            );
-        }
 
-        String nextTurn = FenUtils.getNextTurn(room.getFen());
-        if (move.getMoveDetails().getPromotion() == Boolean.TRUE && move.getMoveDetails().getPromotedPiece() != null) {
-            nextTurn = FenUtils.getTurn(room.getFen());
-        }
+        Room room = this.roomRepository.findByCode(code).orElseThrow(() -> new Exception("The room does not exist"));
+
+        String fen = room.getFen();
+        List<Piece> pieces = MoveUtils.handleMove(FenUtils.parseFenToPieces(fen), move);
+        pieces = updateMovedPieceInList(pieces, movedPiece, targetPosition);
+        String nextTurn = getNextTurn(fen, move);
         String newFen = FenUtils.piecesToFen(pieces, nextTurn);
-        room.setFen(newFen);
-        if (capturedPieces != null) {
+        boolean checkMate = isCheckMate(move);
+
+        if (targetPiece != null) {
+            String capturedPieces = CapturedPieceUtil.recordCapture(room.getCapturedPieces(), targetPiece);
             room.setCapturedPieces(capturedPieces);
         }
+        room.setFen(newFen);
         room.setLastActivity(LocalDateTime.now());
 
-        PieceMovedResponseDTO responseDTO = new PieceMovedResponseDTO()
-                .setMove(move)
-                .setFen(newFen);
-
+        PieceMovedResponseDTO responseDTO = new PieceMovedResponseDTO().setMove(move).setFen(newFen);
         this.broadcastRoomUpdate(code, this.objectMapper.writeValueAsString(responseDTO));
-        this.roomRepository.save(room);
+
+        if (checkMate) {
+            GameStatus whoWon = Objects.equals(move.getMoveDetails().getTargetPiece().getColor(), "w") ?
+                    GameStatus.BLACK_WON :
+                    GameStatus.WHITE_WON;
+            room.setRoomStatus(RoomStatus.OCCUPIED);
+            room.setGameStatus(whoWon);
+
+            User whitePlayer = null, blackPlayer = null;
+            AuthenticatedUserDTO whitePlayerDTO = null, blackPlayerDTO = null;
+
+            if (room.getWhitePlayer() != null) {
+                whitePlayer = this.userService.getUserById(room.getWhitePlayer());
+            }
+            if (room.getBlackPlayer() != null) {
+                blackPlayer = this.userService.getUserById(room.getBlackPlayer());
+            }
+            if (whitePlayer != null) {
+                whitePlayerDTO = new AuthenticatedUserDTO()
+                        .setEmail(whitePlayer.getEmail())
+                        .setUsername(whitePlayer.getUsername())
+                        .setInGame(whitePlayer.getInGame());
+            }
+            if (blackPlayer != null) {
+                blackPlayerDTO = new AuthenticatedUserDTO()
+                        .setEmail(blackPlayer.getEmail())
+                        .setUsername(blackPlayer.getUsername())
+                        .setInGame(blackPlayer.getInGame());
+            }
+            RoomDTO roomDTO = new RoomDTO()
+                    .setId(room.getId())
+                    .setRoomStatus(room.getRoomStatus())
+                    .setGameStatus(room.getGameStatus())
+                    .setCode(room.getCode())
+                    .setFen(newFen)
+                    .setCapturedPieces(room.getCapturedPieces())
+                    .setLastActivity(room.getLastActivity())
+                    .setBlackPlayer(blackPlayerDTO)
+                    .setWhitePlayer(whitePlayerDTO);
+            this.broadcastRoomUpdate(code, this.objectMapper.writeValueAsString(roomDTO));
+            this.completeBroadcastingRoomUpdates(room.getCode());
+            room.setBlackPlayer(null).setWhitePlayer(null);
+            this.roomRepository.save(room);
+        } else {
+            this.roomRepository.save(room);
+        }
     }
 
     public SseEmitter subscribeToRoomUpdates(String code) {

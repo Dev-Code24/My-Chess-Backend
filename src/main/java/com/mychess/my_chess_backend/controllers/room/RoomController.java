@@ -54,7 +54,8 @@ public class RoomController {
 
             RoomDTO room = this.roomService.joinRoom(blackPlayer, roomDetails.getCode());
             if (room == null) {
-                String message = "Cannot join room with roomId " + roomDetails.getCode();
+                String message = "Cannot join room with roomId " + roomDetails.getCode() +
+                        ", try using correct Room Code or join your existing game";
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new BasicResponseDTO<>(
                         message,
                         HttpStatus.NOT_FOUND.value(),
