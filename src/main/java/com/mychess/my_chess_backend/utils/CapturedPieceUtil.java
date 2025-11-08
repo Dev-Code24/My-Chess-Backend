@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class CapturedPieceUtil {
-
     public static String recordCapture(String capturedString, Piece capturedPiece) {
         String capturedPieceType = capturedPiece.getType();
         String capturedPieceColor = capturedPiece.getColor();
@@ -58,7 +57,6 @@ public class CapturedPieceUtil {
 
         return map;
     }
-
 
     private static String buildSection(Map<Character, Integer> counts) {
         return counts.entrySet().stream()

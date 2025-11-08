@@ -28,19 +28,16 @@ public class RoomController {
 
     @PostMapping("/create")
     public ResponseEntity<BasicResponseDTO<RoomDTO>> createRoom(HttpServletRequest req) {
-        try {
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            User whitePlayer = (User) authentication.getPrincipal();
-            RoomDTO newRoom = this.roomService.createRoom(whitePlayer);
-            return ResponseEntity.ok(new BasicResponseDTO<>(
-                    "success",
-                    HttpStatus.OK.value(),
-                    newRoom,
-                    req.getRequestURI()
-            ));
-        } catch (Exception exception) {
-            return MyChessErrorHandler.exceptionHandler(exception.getMessage(), req.getRequestURI());
-        }
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        User whitePlayer = (User) authentication.getPrincipal();
+        RoomDTO newRoom = this.roomService.createRoom(whitePlayer);
+
+        return ResponseEntity.ok(new BasicResponseDTO<>(
+                "success",
+                HttpStatus.OK.value(),
+                newRoom,
+                req.getRequestURI()
+        ));
     }
 
     @PostMapping("/join")
@@ -48,31 +45,16 @@ public class RoomController {
             HttpServletRequest req,
             @RequestBody JoiningRoomDTO roomDetails
     ) {
-        try {
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            User blackPlayer = (User) authentication.getPrincipal();
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        User blackPlayer = (User) authentication.getPrincipal();
+        RoomDTO room = this.roomService.joinRoom(blackPlayer, roomDetails.getCode());
 
-            RoomDTO room = this.roomService.joinRoom(blackPlayer, roomDetails.getCode());
-            if (room == null) {
-                String message = "Cannot join room with roomId " + roomDetails.getCode() +
-                        ", try using correct Room Code or join your existing game";
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new BasicResponseDTO<>(
-                        message,
-                        HttpStatus.NOT_FOUND.value(),
-                        null,
-                        req.getRequestURI()
-                ));
-            }
-
-            return ResponseEntity.ok(new BasicResponseDTO<>(
-                    "success",
-                    HttpStatus.OK.value(),
-                    room,
-                    req.getRequestURI()
-            ));
-        } catch (Exception exception) {
-            return MyChessErrorHandler.exceptionHandler(exception.getMessage(), req.getRequestURI());
-        }
+        return ResponseEntity.ok(new BasicResponseDTO<>(
+                "success",
+                HttpStatus.OK.value(),
+                room,
+                req.getRequestURI()
+        ));
     }
 
     @PostMapping("/move/{code}")
@@ -81,17 +63,13 @@ public class RoomController {
             @RequestBody Move move,
             HttpServletRequest req
     ) {
-        try {
-            this.roomService.move(move, code);
-            return ResponseEntity.ok(new BasicResponseDTO<>(
-                    "success",
-                    HttpStatus.OK.value(),
-                    "Updated Piece",
-                    req.getRequestURI()
-            ));
-        } catch (Exception exception) {
-            return MyChessErrorHandler.exceptionHandler(exception.getMessage(), req.getRequestURI());
-        }
+        this.roomService.move(move, code);
+        return ResponseEntity.ok(new BasicResponseDTO<>(
+                "success",
+                HttpStatus.OK.value(),
+                "Updated Piece",
+                req.getRequestURI()
+        ));
     }
 
     @GetMapping("/{code}")
@@ -99,21 +77,14 @@ public class RoomController {
             @PathVariable String code,
             HttpServletRequest req
     ) {
-        try {
-            RoomDTO room = this.roomService.getRoom(code);
-            if (room == null) {
-                return ResponseEntity.notFound().build();
-            }
+        RoomDTO room = this.roomService.getRoom(code);
 
-            return ResponseEntity.ok(new BasicResponseDTO<>(
-                    "success",
-                    HttpStatus.OK.value(),
-                    room,
-                    req.getRequestURI()
-            ));
-        } catch (Exception exception) {
-            return MyChessErrorHandler.exceptionHandler(exception.getMessage(), req.getRequestURI());
-        }
+        return ResponseEntity.ok(new BasicResponseDTO<>(
+                "success",
+                HttpStatus.OK.value(),
+                room,
+                req.getRequestURI()
+        ));
     }
 
     @GetMapping("/live/{code}")

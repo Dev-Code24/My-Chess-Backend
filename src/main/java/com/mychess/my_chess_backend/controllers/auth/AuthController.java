@@ -9,7 +9,6 @@ import com.mychess.my_chess_backend.models.User;
 import com.mychess.my_chess_backend.services.auth.AuthService;
 import com.mychess.my_chess_backend.services.auth.JWTService;
 import com.mychess.my_chess_backend.utils.GeneratorUtility;
-import com.mychess.my_chess_backend.utils.MyChessErrorHandler;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -38,48 +37,40 @@ public class AuthController {
             @RequestBody RegisteringUserDTO user,
             HttpServletRequest req
     ) {
-        try {
-            // TODO: Search what is actually sent in selfLink property in production backends
-            String username = user.getUsername();
-            if (username == null || username.isBlank()) {
-                user.setUsername(GeneratorUtility.createUsernameFromEmail(user.getEmail()));
-            }
-
-            User newUser = this.authService.signUp(user);
-
-            return this.issueTokensAndRespond(newUser, () ->
-                    new BasicResponseDTO<>(
-                            "success",
-                            HttpStatus.OK.value(),
-                            new RegisteredUserDTO(newUser.getEmail(), newUser.getUsername()),
-                            req.getRequestURI()
-                    )
-            );
-        } catch (Exception exception) {
-            return MyChessErrorHandler.exceptionHandler(exception.getMessage(), req.getRequestURI());
+        // TODO: Search what is actually sent in selfLink property in production backends
+        String username = user.getUsername();
+        if (username == null || username.isBlank()) {
+            user.setUsername(GeneratorUtility.createUsernameFromEmail(user.getEmail()));
         }
+
+        User newUser = this.authService.signUp(user);
+
+        return this.issueTokensAndRespond(newUser, () ->
+                new BasicResponseDTO<>(
+                        "success",
+                        HttpStatus.OK.value(),
+                        new RegisteredUserDTO(newUser.getEmail(), newUser.getUsername()),
+                        req.getRequestURI()
+                )
+        );
     }
     @PostMapping("/login")
     public ResponseEntity<BasicResponseDTO<AuthenticatedUserDTO>> login(
             @RequestBody AuthenticatingUserDTO user,
             HttpServletRequest req
     ) {
-        try {
-            User authenticatedUser = this.authService.authenticate(user);
-            return this.issueTokensAndRespond(authenticatedUser, () ->
-                    new BasicResponseDTO<>(
-                            "success",
-                            HttpStatus.OK.value(),
-                            new AuthenticatedUserDTO(
-                                    authenticatedUser.getEmail(),
-                                    authenticatedUser.getUsername(),
-                                    authenticatedUser.getInGame()),
-                            req.getRequestURI()
-                    )
-            );
-        } catch (Exception exception) {
-            return MyChessErrorHandler.exceptionHandler(exception.getMessage(), req.getRequestURI());
-        }
+        User authenticatedUser = this.authService.authenticate(user);
+        return this.issueTokensAndRespond(authenticatedUser, () ->
+                new BasicResponseDTO<>(
+                        "success",
+                        HttpStatus.OK.value(),
+                        new AuthenticatedUserDTO(
+                                authenticatedUser.getEmail(),
+                                authenticatedUser.getUsername(),
+                                authenticatedUser.getInGame()),
+                        req.getRequestURI()
+                )
+        );
     }
 
     private <T> ResponseEntity<T> issueTokensAndRespond (
