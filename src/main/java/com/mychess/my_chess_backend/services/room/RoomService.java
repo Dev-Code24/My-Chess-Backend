@@ -79,12 +79,12 @@ public class RoomService extends RoomServiceHelper {
         Room existingRoom = roomRepository.findRoomByUserId(blackPlayer.getId()).orElse(null);
         Room room = roomRepository.findByCode(code).orElseThrow(() -> new RoomNotFoundException(code));
 
-        if (room.getWhitePlayer().equals(blackPlayer.getId())) {
-            throw new RoomJoinNotAllowedException("You cannot join your own room as opponent.");
-        }
-
         if (existingRoom != null && !existingRoom.getCode().equals(room.getCode())) {
             throw new RoomJoinNotAllowedException("You are already in another room.");
+        }
+
+        if (room.getWhitePlayer().equals(blackPlayer.getId())) {
+            throw new RoomJoinNotAllowedException("You cannot join your own room as opponent.");
         }
 
         if (room.getBlackPlayer() != null && !room.getBlackPlayer().equals(blackPlayer.getId())) {
@@ -97,7 +97,6 @@ public class RoomService extends RoomServiceHelper {
 
         RoomDTO roomDto = new RoomDTO().setCode(room.getCode());
         this.updateRoom(room, "Opponent joined !");
-        this.broadcastRoomUpdate(room.getCode(), this.writeJson(roomDto));
         return roomDto;
     }
 

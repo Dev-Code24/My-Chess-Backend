@@ -6,7 +6,6 @@ import com.mychess.my_chess_backend.dtos.responses.room.RoomDTO;
 import com.mychess.my_chess_backend.dtos.shared.Move;
 import com.mychess.my_chess_backend.models.User;
 import com.mychess.my_chess_backend.services.room.RoomService;
-import com.mychess.my_chess_backend.utils.MyChessErrorHandler;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
