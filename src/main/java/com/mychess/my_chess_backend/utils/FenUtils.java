@@ -10,8 +10,6 @@ import java.util.List;
 import java.util.Objects;
 
 public class FenUtils {
-    public static final String DEFAULT_CHESSBOARD_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-
     public static List<Piece> parseFenToPieces(String fen) {
         List<Piece> pieces = new ArrayList<>();
         String[] parts = fen.split(" ");
