@@ -384,10 +384,6 @@ spring.jpa.show-sql=true                       # Log SQL
 - [ ] Update CORS allowed origins
 - [ ] Configure proper logging
 
-## 📄 License
-
-[Add your license]
-
 ---
 
 **Built with Spring Boot 3.4.8 • Java 24 • PostgreSQL • WebSocket**
