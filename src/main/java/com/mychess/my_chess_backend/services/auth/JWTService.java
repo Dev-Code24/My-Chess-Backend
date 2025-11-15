@@ -27,7 +27,7 @@ public class JWTService {
     @Value("${security.jwt.expiration-time}")
     private Duration jwtExpiration;
 
-    public String extractUsername(String token)  { return extractClaim(token, Claims::getSubject); }
+    public String extractEmail(String token)  { return extractClaim(token, Claims::getSubject); }
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
@@ -38,7 +38,7 @@ public class JWTService {
         return this.buildToken(extraClaims, user, this.jwtExpiration);
     }
     public boolean isTokenValid(String token, UserDetails user) {
-        final String username = this.extractUsername(token);
+        final String username = this.extractEmail(token);
         return username.equals(user.getUsername()) && !isTokenExpired(token);
     }
     public boolean isTokenExpired(String token) { return this.extractExpiration(token).before(new Date()); }

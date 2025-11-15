@@ -15,6 +15,7 @@ import org.hibernate.annotations.UuidGenerator;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.security.Principal;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
@@ -27,7 +28,7 @@ import java.util.UUID;
 @Builder
 @Entity
 @Table(name = "users")
-public class User implements UserDetails {
+public class User implements UserDetails, Principal {
     @Id
     @Column(nullable = false)
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -68,5 +69,10 @@ public class User implements UserDetails {
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of();
+    }
+
+    @Override
+    public String getName() {
+        return this.getEmail();
     }
 }

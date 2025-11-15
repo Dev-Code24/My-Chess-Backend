@@ -3,7 +3,6 @@ package com.mychess.my_chess_backend.controllers.room;
 import com.mychess.my_chess_backend.dtos.requests.room.JoiningRoomDTO;
 import com.mychess.my_chess_backend.dtos.responses.BasicResponseDTO;
 import com.mychess.my_chess_backend.dtos.responses.room.RoomDTO;
-import com.mychess.my_chess_backend.dtos.shared.Move;
 import com.mychess.my_chess_backend.models.User;
 import com.mychess.my_chess_backend.services.room.RoomService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -12,7 +11,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RequestMapping("/room")
 @RestController
@@ -56,21 +54,6 @@ public class RoomController {
         ));
     }
 
-    @PostMapping("/move/{code}")
-    public ResponseEntity<BasicResponseDTO<String>> pieceMoved(
-            @PathVariable String code,
-            @RequestBody Move move,
-            HttpServletRequest req
-    ) {
-        this.roomService.move(move, code);
-        return ResponseEntity.ok(new BasicResponseDTO<>(
-                "success",
-                HttpStatus.OK.value(),
-                "Updated Piece",
-                req.getRequestURI()
-        ));
-    }
-
     @GetMapping("/{code}")
     public ResponseEntity<BasicResponseDTO<RoomDTO>> roomDetails(
             @PathVariable String code,
@@ -84,10 +67,5 @@ public class RoomController {
                 room,
                 req.getRequestURI()
         ));
-    }
-
-    @GetMapping("/live/{code}")
-    public SseEmitter streamEvents(@PathVariable String code, HttpServletRequest req) {
-        return this.roomService.subscribeToRoomUpdates(code);
     }
 }

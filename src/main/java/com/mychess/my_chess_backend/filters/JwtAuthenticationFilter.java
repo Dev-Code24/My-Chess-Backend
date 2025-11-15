@@ -1,4 +1,4 @@
-package com.mychess.my_chess_backend.configs.filters;
+package com.mychess.my_chess_backend.filters;
 
 import com.mychess.my_chess_backend.services.auth.JWTService;
 import jakarta.servlet.FilterChain;
@@ -55,7 +55,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 return;
             }
 
-            final String userEmail = this.jwtService.extractUsername(jwt);
+            final String userEmail = this.jwtService.extractEmail(jwt);
 
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             if (userEmail != null &&  authentication == null) {

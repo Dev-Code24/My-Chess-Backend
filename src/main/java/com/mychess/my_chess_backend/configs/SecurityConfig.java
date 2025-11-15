@@ -1,6 +1,6 @@
 package com.mychess.my_chess_backend.configs;
 
-import com.mychess.my_chess_backend.configs.filters.JwtAuthenticationFilter;
+import com.mychess.my_chess_backend.filters.JwtAuthenticationFilter;
 import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

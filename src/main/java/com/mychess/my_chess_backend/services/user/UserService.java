@@ -16,13 +16,15 @@ public class UserService {
     }
 
     public String getUsernameById(UUID id) {
-        Optional<User> user = this.userRepository.findById(id);
-        return user.map(User::getUsername).orElse(null);
+        return this.userRepository.findById(id).map(User::getUsername).orElse(null);
     }
 
     public User getUserById(UUID id) {
-        Optional<User> user = this.userRepository.findById(id);
-        return user.orElse(null);
+        return this.userRepository.findById(id).orElse(null);
+    }
+
+    public User getUserByEmail(String email) {
+        return this.userRepository.findByEmail(email).orElse(null);
     }
 
     public boolean updateUser(User user) {

@@ -1,13 +1,13 @@
 package com.mychess.my_chess_backend.services.room;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mychess.my_chess_backend.dtos.responses.auth.AuthenticatedUserDTO;
 import com.mychess.my_chess_backend.dtos.responses.room.PieceMovedResponseDTO;
 import com.mychess.my_chess_backend.dtos.responses.room.RoomDTO;
 import com.mychess.my_chess_backend.dtos.shared.Piece;
 import com.mychess.my_chess_backend.dtos.shared.Move;
 import com.mychess.my_chess_backend.dtos.shared.Position;
+import com.mychess.my_chess_backend.exceptions.room.ErrorMessage;
+import com.mychess.my_chess_backend.exceptions.room.MoveNotAllowed;
 import com.mychess.my_chess_backend.models.Room;
 import com.mychess.my_chess_backend.models.User;
 import com.mychess.my_chess_backend.repositories.RoomRepository;
@@ -20,35 +20,28 @@ import com.mychess.my_chess_backend.utils.enums.GameStatus;
 import com.mychess.my_chess_backend.utils.enums.RoomStatus;
 import com.mychess.my_chess_backend.exceptions.room.RoomJoinNotAllowedException;
 import com.mychess.my_chess_backend.exceptions.room.RoomNotFoundException;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
 
 @Service
 public class RoomService extends RoomServiceHelper {
     private final RoomRepository roomRepository;
-    private final ExecutorService executorService;
     private final UserService userService;
-    private final ObjectMapper objectMapper;
+    private final SimpMessagingTemplate simpMessagingTemplate;
 
     private static final Random random = new Random();
-    private final Map<String, List<SseEmitter>> roomSubscribers = new ConcurrentHashMap<>();
 
     public RoomService(
             RoomRepository roomRepository,
-            ExecutorService executorService,
             UserService userService,
-            ObjectMapper objectMapper
+            SimpMessagingTemplate simpMessagingTemplate
     ) {
         this.roomRepository = roomRepository;
-        this.executorService = executorService;
         this.userService = userService;
-        this.objectMapper = objectMapper;
+        this.simpMessagingTemplate = simpMessagingTemplate;
     }
 
     public RoomDTO createRoom(User whitePlayer) {
@@ -80,15 +73,15 @@ public class RoomService extends RoomServiceHelper {
         Room room = roomRepository.findByCode(code).orElseThrow(() -> new RoomNotFoundException(code));
 
         if (existingRoom != null && !existingRoom.getCode().equals(room.getCode())) {
-            throw new RoomJoinNotAllowedException("You are already in another room.");
+            throw new RoomJoinNotAllowedException(ErrorMessage.ALREADY_IN_ROOM.getValue());
         }
 
         if (room.getWhitePlayer().equals(blackPlayer.getId())) {
-            throw new RoomJoinNotAllowedException("You cannot join your own room as opponent.");
+            throw new RoomJoinNotAllowedException(ErrorMessage.CANNOT_JOIN_YOUR_OWN_ROOM.getValue());
         }
 
         if (room.getBlackPlayer() != null && !room.getBlackPlayer().equals(blackPlayer.getId())) {
-            throw new RoomJoinNotAllowedException("This room is already full.");
+            throw new RoomJoinNotAllowedException(ErrorMessage.ROOM_ALREADY_FULL.getValue());
         }
 
         blackPlayer.setInGame(true);
@@ -96,7 +89,8 @@ public class RoomService extends RoomServiceHelper {
         this.userService.updateUser(blackPlayer);
 
         RoomDTO roomDto = new RoomDTO().setCode(room.getCode());
-        this.updateRoom(room, "Opponent joined !");
+        this.roomRepository.save(room);
+        this.broadcastRoomUpdate(code, "Opponent Joined !");
         return roomDto;
     }
 
@@ -105,22 +99,18 @@ public class RoomService extends RoomServiceHelper {
         if (room == null) {
             throw new RoomNotFoundException(code);
         }
-        User whitePlayer = null, blackPlayer = null;
-        if (room.getWhitePlayer() != null) {
-            whitePlayer = this.userService.getUserById(room.getWhitePlayer());
-        }
-        if (room.getBlackPlayer() != null) {
-            blackPlayer = this.userService.getUserById(room.getBlackPlayer());
-        }
 
         AuthenticatedUserDTO whitePlayerDTO = null, blackPlayerDTO = null;
-        if (whitePlayer != null) {
+
+        if (room.getWhitePlayer() != null) {
+            User whitePlayer = this.userService.getUserById(room.getWhitePlayer());
             whitePlayerDTO = new AuthenticatedUserDTO()
                     .setEmail(whitePlayer.getEmail())
                     .setUsername(whitePlayer.getUsername())
                     .setInGame(whitePlayer.getInGame());
         }
-        if (blackPlayer != null) {
+        if (room.getBlackPlayer() != null) {
+            User blackPlayer = this.userService.getUserById(room.getBlackPlayer());
             blackPlayerDTO = new AuthenticatedUserDTO()
                     .setEmail(blackPlayer.getEmail())
                     .setUsername(blackPlayer.getUsername())
@@ -138,23 +128,50 @@ public class RoomService extends RoomServiceHelper {
                 .setBlackPlayer(blackPlayerDTO);
     }
 
-    public void updateRoom(Room room, Object data) {
-        this.roomRepository.save(room);
-        this.broadcastRoomUpdate(room.getCode(), data);
+    public void processPlayerMove(
+            Move move,
+            String code,
+            User player
+    ) {
+        Room room = this.roomRepository.findByCode(code).orElseThrow(() -> new RoomNotFoundException(code));
+        if (
+                !Objects.equals(room.getWhitePlayer(), player.getId()) &&
+                !Objects.equals(room.getBlackPlayer(), player.getId())
+        ) {
+            throw new RoomJoinNotAllowedException(ErrorMessage.UNAUTHORIZED_MOVE.getValue());
+        }
+
+        if (room.getGameStatus() != GameStatus.IN_PROGRESS) {
+            throw new RoomJoinNotAllowedException(ErrorMessage.GAME_INACTIVE.getValue());
+        }
+
+        boolean isWhiteTurn = FenUtils.getTurn(room.getFen()).equals("w");
+        boolean isPlayerWhite = Objects.equals(room.getWhitePlayer(), player.getId());
+
+        if (isWhiteTurn && !isPlayerWhite) {
+            throw new MoveNotAllowed(ErrorMessage.WHITES_TURN.getValue());
+        }
+
+        if (!isWhiteTurn && isPlayerWhite) {
+            throw new MoveNotAllowed(ErrorMessage.BLACKS_TURN.getValue());
+        }
+
+        this.handleMove(move, room);
     }
 
-    public void move(Move move, String code) {
+    public void handleMove(Move move, Room room) {
         Piece movedPiece = move.getPiece();
         Piece targetPiece = move.getMoveDetails().getTargetPiece();
         Position targetPosition = move.getTo();
-
-        Room room = this.roomRepository.findByCode(code).orElseThrow(() -> new RoomNotFoundException(code));
-
         String fen = room.getFen();
+        String code = room.getCode();
+
         List<Piece> pieces = MoveUtils.handleMove(FenUtils.parseFenToPieces(fen), move);
         pieces = updateMovedPieceInList(pieces, movedPiece, targetPosition);
+
         String nextTurn = getNextTurn(fen, move);
         String newFen = FenUtils.piecesToFen(pieces, nextTurn);
+
         boolean checkMate = isCheckMate(move);
 
         if (targetPiece != null) {
@@ -165,7 +182,7 @@ public class RoomService extends RoomServiceHelper {
         room.setLastActivity(LocalDateTime.now());
 
         PieceMovedResponseDTO responseDTO = new PieceMovedResponseDTO().setMove(move).setFen(newFen);
-        this.broadcastRoomUpdate(code, writeJson(responseDTO));
+        this.broadcastRoomUpdate(code, responseDTO);
 
         if (checkMate) {
             GameStatus whoWon = Objects.equals(move.getMoveDetails().getTargetPiece().getColor(), "w") ?
@@ -174,22 +191,17 @@ public class RoomService extends RoomServiceHelper {
             room.setRoomStatus(RoomStatus.OCCUPIED);
             room.setGameStatus(whoWon);
 
-            User whitePlayer = null, blackPlayer = null;
             AuthenticatedUserDTO whitePlayerDTO = null, blackPlayerDTO = null;
 
+            User whitePlayer = this.userService.getUserById(room.getWhitePlayer());
+            User blackPlayer = this.userService.getUserById(room.getBlackPlayer());
             if (room.getWhitePlayer() != null) {
-                whitePlayer = this.userService.getUserById(room.getWhitePlayer());
-            }
-            if (room.getBlackPlayer() != null) {
-                blackPlayer = this.userService.getUserById(room.getBlackPlayer());
-            }
-            if (whitePlayer != null) {
                 whitePlayerDTO = new AuthenticatedUserDTO()
                         .setEmail(whitePlayer.getEmail())
                         .setUsername(whitePlayer.getUsername())
                         .setInGame(whitePlayer.getInGame());
             }
-            if (blackPlayer != null) {
+            if (room.getBlackPlayer() != null) {
                 blackPlayerDTO = new AuthenticatedUserDTO()
                         .setEmail(blackPlayer.getEmail())
                         .setUsername(blackPlayer.getUsername())
@@ -205,69 +217,19 @@ public class RoomService extends RoomServiceHelper {
                     .setLastActivity(room.getLastActivity())
                     .setBlackPlayer(blackPlayerDTO)
                     .setWhitePlayer(whitePlayerDTO);
-            this.broadcastRoomUpdate(code, writeJson(roomDTO));
-            this.completeBroadcastingRoomUpdates(room.getCode());
             room.setBlackPlayer(null).setWhitePlayer(null);
-            this.roomRepository.save(room);
-        } else {
-            this.roomRepository.save(room);
+            whitePlayer.setInGame(false);
+            blackPlayer.setInGame(false);
+            this.userService.updateUser(whitePlayer);
+            this.userService.updateUser(blackPlayer);
+            this.broadcastRoomUpdate(code, roomDTO);
+            this.broadcastRoomUpdate(code, "Game has ended.");
         }
-    }
-
-    public SseEmitter subscribeToRoomUpdates(String code) {
-        SseEmitter emitter = new SseEmitter((long) Integer.MAX_VALUE);
-        System.out.println("------- New person subscribed -------" + this.roomSubscribers);
-        this.roomSubscribers.computeIfAbsent(code, (_) -> new ArrayList<>()).add(emitter);
-        emitter.onCompletion(() -> this.removeRoomSubscriber(code, emitter));
-        emitter.onTimeout(() -> {
-            emitter.complete();
-            this.removeRoomSubscriber(code, emitter);
-        });
-        emitter.onError((e) -> this.removeRoomSubscriber(code, emitter));
-        this.sendUpdateToSubscriber(emitter, "Connected for live updates");
-        return emitter;
-    }
-
-    public void completeBroadcastingRoomUpdates(String roomCode) {
-        List<SseEmitter> emitters = this.roomSubscribers.get(roomCode);
-        this.broadcastRoomUpdate(roomCode, "Game has ended.");
-        if (emitters != null) {
-            for (var emitter : emitters) {
-                emitter.complete();
-            }
-            this.roomSubscribers.remove(roomCode);
-        }
+        this.roomRepository.save(room);
     }
 
     private void broadcastRoomUpdate(String roomCode, Object data) {
-        List<SseEmitter> emitters = this.roomSubscribers.get(roomCode);
-        if (emitters != null) {
-            for (SseEmitter emitter : emitters) {
-                this.sendUpdateToSubscriber(emitter, data);
-            }
-        }
-    }
-
-    private void sendUpdateToSubscriber(SseEmitter emitter, Object data) {
-        this.executorService.execute(() -> {
-            try {
-                emitter.send(SseEmitter.event().data(data.toString() + "\n\n"));
-            } catch (IOException e) {
-                System.out.println("------- Failed to send update, completing emitter with error -------");
-                emitter.completeWithError(e);
-                // The onError callback will handle cleanup
-            } catch (IllegalStateException e) {
-                // Emitter already completed, ignore
-                System.out.println("------- Attempted to send to already completed emitter -------");
-            }
-        });
-    }
-
-    private void removeRoomSubscriber(String roomCode, SseEmitter emitter) {
-        List<SseEmitter> emitters = this.roomSubscribers.get(roomCode);
-        if (emitters != null) {
-            emitters.remove(emitter);
-        }
+        this.simpMessagingTemplate.convertAndSend("/topic/room." + roomCode, data);
     }
 
     // TODO: Find a better way to generate Unique RoomID
@@ -284,13 +246,5 @@ public class RoomService extends RoomServiceHelper {
         } while (existingRoom.isPresent());
 
         return code;
-    }
-
-    private <T> String writeJson(T data) {
-        try {
-            return objectMapper.writeValueAsString(data);
-        } catch (JsonProcessingException ex) {
-            throw new RuntimeException("JSON Serialization failed");
-        }
     }
 }

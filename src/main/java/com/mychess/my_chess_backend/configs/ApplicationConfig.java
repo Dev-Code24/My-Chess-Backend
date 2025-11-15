@@ -27,7 +27,7 @@ public class ApplicationConfig {
 
     @Bean
     public UserDetailsService userDetailsService() {
-        return username -> this.userRepository.findByEmail(username).orElseThrow(() -> new UsernameNotFoundException("USER NOT FOUND ❌"));
+        return email -> this.userRepository.findByEmail(email).orElseThrow(() -> new UsernameNotFoundException("USER NOT FOUND ❌"));
     }
     @Bean
     public BCryptPasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
