@@ -27,19 +27,19 @@ public class JWTService {
     @Value("${security.jwt.expiration-time}")
     private Duration jwtExpiration;
 
-    public String extractUsername(String token)  { return extractClaim(token, Claims::getSubject); }
+    public String extractEmail(String token)  { return extractClaim(token, Claims::getSubject); }
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
     }
     public String generateToken(User user) { return this.generateToken(new HashMap<>(), user); }
     public String generateToken( Map<String, Object> extraClaims, User user ) {
-        extraClaims.put("username", user.getUsername());
+//        extraClaims.put("email", user.getEmail());
         return this.buildToken(extraClaims, user, this.jwtExpiration);
     }
-    public boolean isTokenValid(String token, UserDetails user) {
-        final String username = this.extractUsername(token);
-        return username.equals(user.getUsername()) && !isTokenExpired(token);
+    public boolean isTokenValid(String token, User user) {
+        final String email = this.extractEmail(token);
+        return email.equals(user.getEmail()) && !isTokenExpired(token);
     }
     public boolean isTokenExpired(String token) { return this.extractExpiration(token).before(new Date()); }
 
