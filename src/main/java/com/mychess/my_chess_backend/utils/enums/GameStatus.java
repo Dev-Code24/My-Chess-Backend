@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 public enum GameStatus {
     WAITING("waiting"),
     IN_PROGRESS("in_progress"),
+    PAUSED("paused"),
     DRAW("draw"),
     CANCELLED("cancelled"),
     WHITE_WON("white_won"),

@@ -228,6 +228,14 @@ public class RoomService extends RoomServiceHelper {
         this.roomRepository.save(room);
     }
 
+    public Room getRoomByUserId(UUID userId) {
+        return this.roomRepository.findRoomByUserId(userId).orElse(null);
+    }
+
+    public void updateRoom(Room room) {
+        this.roomRepository.save(room);
+    }
+
     private void broadcastRoomUpdate(String roomCode, Object data) {
         this.simpMessagingTemplate.convertAndSend("/topic/room." + roomCode, data);
     }

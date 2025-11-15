@@ -7,6 +7,7 @@ import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
@@ -25,7 +26,7 @@ public class RoomWebSocketController {
             @Payload Move move,
             Principal userPrincipal
     ) {
-        var auth = (UsernamePasswordAuthenticationToken) userPrincipal;
+        Authentication auth = (Authentication) userPrincipal;
         User user = (User) auth.getPrincipal();
         this.roomService.processPlayerMove(move, code, user);
     }

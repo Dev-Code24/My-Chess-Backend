@@ -34,12 +34,12 @@ public class JWTService {
     }
     public String generateToken(User user) { return this.generateToken(new HashMap<>(), user); }
     public String generateToken( Map<String, Object> extraClaims, User user ) {
-        extraClaims.put("username", user.getUsername());
+//        extraClaims.put("email", user.getEmail());
         return this.buildToken(extraClaims, user, this.jwtExpiration);
     }
-    public boolean isTokenValid(String token, UserDetails user) {
-        final String username = this.extractEmail(token);
-        return username.equals(user.getUsername()) && !isTokenExpired(token);
+    public boolean isTokenValid(String token, User user) {
+        final String email = this.extractEmail(token);
+        return email.equals(user.getEmail()) && !isTokenExpired(token);
     }
     public boolean isTokenExpired(String token) { return this.extractExpiration(token).before(new Date()); }
 
