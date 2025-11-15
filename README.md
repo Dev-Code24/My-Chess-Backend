@@ -176,7 +176,7 @@ export DB_PASSWORD="your-db-password"
 ### Installation & Run
 ```bash
 # Clone repository
-git clone <repo-url>
+git clone https://github.com/Dev-Code24/My-Chess-Backend
 cd My-Chess-Backend
 
 # Install dependencies
