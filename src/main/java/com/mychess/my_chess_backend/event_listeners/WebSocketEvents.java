@@ -15,7 +15,7 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 import java.security.Principal;
 
-@Component
+// This can be used to check whether a user is active or not, for future development this is useful
 public class WebSocketEvents {
     private final SimpMessagingTemplate messagingTemplate;
     private final UserService userService;
@@ -46,10 +46,11 @@ public class WebSocketEvents {
 
         String code = room.getCode();
         String message = "Player " + disconnectedUser.getUsername() + " disconnected.";
-        messagingTemplate.convertAndSend("/topic/room." + code, message);
+        System.out.println(message);
+        this.messagingTemplate.convertAndSend("/topic/room." + code, message);
         disconnectedUser.setInGame(false);
         this.userService.updateUser(disconnectedUser);
-        room.setGameStatus(GameStatus.PAUSED);
+//        room.setGameStatus(GameStatus.PAUSED);
         this.roomService.updateRoom(room);
     }
 
@@ -68,9 +69,9 @@ public class WebSocketEvents {
         String code = room.getCode();
         String message = "Player " + connectedUser.getUsername() + " connected.";
         messagingTemplate.convertAndSend("/topic/room." + code, message);
-        connectedUser.setInGame(false);
+        connectedUser.setInGame(true);
         this.userService.updateUser(connectedUser);
-        room.setGameStatus(GameStatus.PAUSED);
+//        room.setGameStatus(GameStatus.IN_PROGRESS);
         this.roomService.updateRoom(room);
     }
 

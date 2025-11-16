@@ -6,7 +6,6 @@ import com.mychess.my_chess_backend.services.room.RoomService;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 
@@ -29,5 +28,25 @@ public class RoomWebSocketController {
         Authentication auth = (Authentication) userPrincipal;
         User user = (User) auth.getPrincipal();
         this.roomService.processPlayerMove(move, code, user);
+    }
+
+    @MessageMapping("/room/{code}/join")
+    public void joinRoom(
+            @DestinationVariable String code,
+            Principal userPrincipal
+    ) {
+        Authentication auth = (Authentication) userPrincipal;
+        User user = (User) auth.getPrincipal();
+        this.roomService.handlePlayerJoinRoom(code, user);
+    }
+
+    @MessageMapping("/room/{code}/leave")
+    public void leaveRoom(
+            @DestinationVariable String code,
+            Principal userPrincipal
+    ) {
+        Authentication auth = (Authentication) userPrincipal;
+        User user = (User) auth.getPrincipal();
+        this.roomService.handlePlayerLeaveRoom(code, user);
     }
 }
