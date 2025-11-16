@@ -10,7 +10,7 @@ A production-ready Spring Boot REST API for real-time multiplayer chess, featuri
 ## ✨ Key Features
 
 - **JWT Authentication**: Secure token-based auth with HTTP-only cookies and BCrypt password hashing
-- **Real-time Multiplayer**: WebSocket-based bidirectional communication for live game synchronization
+- **Real-time Multiplayer**: WebSocket-based bidirectional communication with STOMP protocol for live game synchronization
 - **Complete Chess Engine**: Full move validation, checkmate detection, FEN notation, and special moves (castling, en passant, promotion)
 - **RESTful API**: 9 endpoints for auth, room management, and gameplay
 - **Database Persistence**: PostgreSQL with JPA/Hibernate for users, rooms, and game moves
@@ -24,10 +24,10 @@ A production-ready Spring Boot REST API for real-time multiplayer chess, featuri
 | **Java** | 24 | Programming language |
 | **Spring Security** | 6.x | Authentication & authorization |
 | **Spring Data JPA** | 3.5.7 | ORM and data access |
-| **Spring WebSocket** | 6.2.12 | Real-time communication |
+| **Spring WebSocket** | 6.2.12 | Real-time communication with STOMP |
 | **PostgreSQL** | Latest | Relational database |
 | **JJWT** | 0.11.5 | JWT token management |
-| **Lombok** | Latest | Boilerplate reduction |
+| **Lombok** | Latest | Boilerplate reduction with @Builder |
 | **HikariCP** | Embedded | Connection pooling |
 | **Maven** | 3.x+ | Build management |
 
@@ -47,16 +47,29 @@ A production-ready Spring Boot REST API for real-time multiplayer chess, featuri
 └─────────────────────────────────────────┘
 ```
 
-### Design Patterns
+### Design Patterns Implemented
 
-- **[Repository Pattern](https://refactoring.guru/design-patterns/repository)**: Spring Data JPA repositories (`UserRepository`, `RoomRepository`) abstract data access layer
-- **[Service Layer Pattern](https://martinfowler.com/eaaCatalog/serviceLayer.html)**: Business logic encapsulated in service classes (`AuthService`, `RoomService`, `UserService`)
-- **[DTO Pattern](https://refactoring.guru/design-patterns/data-transfer-object)**: Data Transfer Objects for API request/response isolation from domain models
-- **[Strategy Pattern](https://refactoring.guru/design-patterns/strategy)**: Chess move validation algorithms for different piece types (MoveUtils with piece-specific validation)
-- **[Observer Pattern](https://refactoring.guru/design-patterns/observer)**: WebSocket subscribers managed in ConcurrentHashMap for real-time updates
-- **[Filter Chain Pattern](https://refactoring.guru/design-patterns/chain-of-responsibility)**: `JwtAuthenticationFilter` in Spring Security filter chain for authentication
-- **[Facade Pattern](https://refactoring.guru/design-patterns/facade)**: `RoomService` provides simplified interface for complex chess game logic
-- **Singleton Pattern**: Spring beans managed as singletons by IoC container
+- **[Strategy Pattern](https://refactoring.guru/design-patterns/strategy)**: Chess move handling in `MoveUtils.handleMove()` with different strategies (`handlePieceCapture()`, `handleCastling()`, `handlePawnPromotion()`) for each move type
+
+- **Helper/Template Method Pattern**: `RoomServiceHelper` class provides protected static methods for shared game logic, extended by `RoomService` for code reuse
+
+- **[Builder Pattern](https://refactoring.guru/design-patterns/builder)** with **Fluent API**: Lombok `@Builder` + `@Accessors(chain = true)` for entity/DTO construction with readable chained setters
+
+- **State Machine Pattern**: Explicit game state management using `GameStatus` enum (`WAITING`, `IN_PROGRESS`, `WHITE_WON`, `BLACK_WON`, `PAUSED`) and `RoomStatus` enum (`AVAILABLE`, `OCCUPIED`)
+
+- **Immutable Utility Pattern**: Pure functional static methods in `FenUtils`, `MoveUtils`, `CapturedPieceUtil` with no side effects for testability
+
+- **Enhanced Enum Pattern**: `ChessPiece` enum with domain methods `fromFenChar()` and `toFenChar()` for FEN notation conversion
+
+- **Custom Exception Hierarchy**: Domain-specific exceptions (`RoomNotFoundException`, `RoomJoinNotAllowedException`, `MoveNotAllowed`) with semantic error messages
+
+- **Error Message Enumeration**: `ErrorMessage` enum centralizing all error messages (`ALREADY_IN_ROOM`, `WHITES_TURN`, etc.) preventing string duplication
+
+- **[Observer Pattern](https://refactoring.guru/design-patterns/observer)**: `WebSocketEvents` class with `@EventListener` for handling WebSocket lifecycle (connect/disconnect) and automatic game state updates
+
+- **Centralized Constants**: `RoomConstants` class for magic values (`DEFAULT_CHESSBOARD_FEN`, `ROOM_CODE_LENGTH`, etc.)
+
+- **Broadcast Pattern**: `SimpMessagingTemplate` encapsulated in service methods for room-specific message distribution
 
 ### System Design Highlights
 
@@ -75,14 +88,14 @@ Player A submits move (POST /room/move/{code})
    ↓
 RoomService validates move → Updates FEN → Saves to DB
    ↓
-Broadcasts to WebSocket subscribers (ConcurrentHashMap)
+Broadcasts to WebSocket subscribers via SimpMessagingTemplate
    ↓
 Player B receives move update → UI updates board
 ```
 
 **3. WebSocket Architecture**
 ```
-WebSocketConfig (Spring WebSocket)
+WebSocketConfig (Spring WebSocket with STOMP)
 ├── Endpoint: /room/ws/{roomCode}
 ├── Authentication: JWT cookie validation
 ├── Handler: RoomWebSocketHandler
@@ -116,6 +129,27 @@ SecurityConfig
 └── Filter chain:
     ├── JwtAuthenticationFilter (custom)
     └── Spring Security filters
+```
+
+**6. Database Schema Design**
+
+**Users**:
+```sql
+id (UUID), email (unique), username (unique), password (BCrypt),
+auth_provider, two_factor_enabled, is_active, in_game
+```
+
+**Rooms**:
+```sql
+id (UUID), code (unique 6-char), fen (board state),
+captured_pieces (custom format), room_status, game_status,
+white_player (FK), black_player (FK), last_activity
+```
+
+**GameMoves**:
+```sql
+id (UUID), room_id (FK), moved_by (FK),
+move_number, move_notation (algebraic)
 ```
 
 ## 🚀 Quick Start
@@ -218,19 +252,19 @@ Response:
 ## ♟️ Chess Engine Highlights
 
 **Move Validation** (`MoveUtils.java`):
+- Strategy pattern with separate handlers for each move type
 - **Pawn**: Single/double step, diagonal capture, en passant, promotion
 - **Rook**: Horizontal/vertical with path checking
 - **Knight**: L-shaped movement (jumps over pieces)
 - **Bishop**: Diagonal with path checking
 - **Queen**: Combined rook + bishop
-- **King**: Single square + castling validation
+- **King**: Single square + castling validation with path and safety checks
 
-**Checkmate Detection**:
+**Checkmate Detection** (`RoomServiceHelper.isCheckMate()`):
 ```java
-1. Check if king is in check
-2. Try all possible moves for all pieces
-3. If no legal move removes check → Checkmate
-4. Update GameStatus (WHITE_WON/BLACK_WON)
+1. Check if king is captured (targetPiece is king)
+2. Update GameStatus (WHITE_WON/BLACK_WON)
+3. Return boolean for game ending
 ```
 
 **FEN Notation** (`FenUtils.java`):
@@ -242,42 +276,51 @@ Format: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
                                                │ │    └─ En passant
                                                │ └─ Castling rights
                                                └─ Active color
+
+Methods:
+- parseFenToPieces(): FEN string → List<Piece>
+- piecesToFen(): List<Piece> → FEN string
+- getTurn(): Extract current turn from FEN
 ```
 
 **Captured Pieces** (`CapturedPieceUtil.java`):
-- Format: `b{pieces}/w{pieces}` (e.g., `bPN/wRQ`)
-- Tracked in Room entity
+- Custom format: `b1n1p2/R2Q1` (black pieces / white pieces)
+- Format: `{piece_letter}{count}` (e.g., `p2` = 2 pawns)
+- Methods: `recordCapture()`, `parseSection()`, `buildSection()`
 
 ## 📊 Performance Optimizations
 
-- **HikariCP**: Maximum pool size of 5 connections
-- **Async Broadcasting**: ExecutorService for WebSocket messages
+- **HikariCP**: Maximum pool size of 5 connections with connection test query
+- **Async Broadcasting**: ExecutorService for WebSocket messages to prevent blocking
 - **JPA Optimization**: `spring.jpa.hibernate.ddl-auto=update` (dev), `validate` (prod)
+- **Builder Pattern**: Lombok builders reduce object creation overhead
 
 ## 🐛 Troubleshooting
 
-**JWT Invalid**: Check `JWT_KEY` environment variable and token expiration
+**JWT Invalid**: Check `JWT_KEY` environment variable is set and token hasn't expired
 **DB Connection Failed**: Verify `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, ensure PostgreSQL is running
-**WebSocket Fails**: Confirm JWT cookie sent, backend running, room code valid
+**WebSocket Fails**: Confirm JWT cookie is being sent, backend is running, room code is valid
 **CORS Errors**: Update `SecurityConfig` allowed origins for your frontend URL
+**Move Validation Fails**: Check `MoveUtils` logs, verify FEN string format
 
 ## 📚 Key Configuration
 
 **application.properties**:
 ```properties
 server.port=8080
-spring.jpa.hibernate.ddl-auto=update          # Auto-create tables
+spring.jpa.hibernate.ddl-auto=update          # Auto-create tables (dev)
 spring.datasource.hikari.maximum-pool-size=5  # Connection pool
-spring.jpa.show-sql=true                       # Log SQL
+spring.jpa.show-sql=true                       # Log SQL (dev)
 ```
 
 **Production Checklist**:
-- [ ] Change JWT secret to strong random value
+- [ ] Change JWT secret to strong random value (256-bit minimum)
 - [ ] Set `spring.jpa.hibernate.ddl-auto=validate`
-- [ ] Use Flyway/Liquibase for migrations
+- [ ] Use Flyway/Liquibase for database migrations
 - [ ] Enable HTTPS and set `Secure` flag on cookies
-- [ ] Update CORS allowed origins
-- [ ] Configure proper logging
+- [ ] Update CORS allowed origins to production domains
+- [ ] Configure proper logging (SLF4J/Logback)
+- [ ] Set up monitoring (Spring Boot Actuator)
 
 ---
 
