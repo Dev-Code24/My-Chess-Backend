@@ -47,6 +47,17 @@ A production-ready Spring Boot REST API for real-time multiplayer chess, featuri
 └─────────────────────────────────────────┘
 ```
 
+### Design Patterns
+
+- **[Repository Pattern](https://refactoring.guru/design-patterns/repository)**: Spring Data JPA repositories (`UserRepository`, `RoomRepository`) abstract data access layer
+- **[Service Layer Pattern](https://martinfowler.com/eaaCatalog/serviceLayer.html)**: Business logic encapsulated in service classes (`AuthService`, `RoomService`, `UserService`)
+- **[DTO Pattern](https://refactoring.guru/design-patterns/data-transfer-object)**: Data Transfer Objects for API request/response isolation from domain models
+- **[Strategy Pattern](https://refactoring.guru/design-patterns/strategy)**: Chess move validation algorithms for different piece types (MoveUtils with piece-specific validation)
+- **[Observer Pattern](https://refactoring.guru/design-patterns/observer)**: WebSocket subscribers managed in ConcurrentHashMap for real-time updates
+- **[Filter Chain Pattern](https://refactoring.guru/design-patterns/chain-of-responsibility)**: `JwtAuthenticationFilter` in Spring Security filter chain for authentication
+- **[Facade Pattern](https://refactoring.guru/design-patterns/facade)**: `RoomService` provides simplified interface for complex chess game logic
+- **Singleton Pattern**: Spring beans managed as singletons by IoC container
+
 ### System Design Highlights
 
 **1. Authentication Flow**
@@ -81,7 +92,7 @@ WebSocketConfig (Spring WebSocket)
 └── Broadcasting: ExecutorService for async
 ```
 
-**4. Chess Engine Design**
+**4. Chess Moves Validation Design**
 ```
 Move Validation Pipeline:
 ├── FenUtils.parseFen() → Convert FEN to 8x8 board
@@ -105,56 +116,6 @@ SecurityConfig
 └── Filter chain:
     ├── JwtAuthenticationFilter (custom)
     └── Spring Security filters
-```
-
-**6. Database Schema Design**
-
-**Users**:
-```sql
-id (UUID), email (unique), username (unique), password (BCrypt),
-auth_provider, two_factor_enabled, is_active, in_game
-```
-
-**Rooms**:
-```sql
-id (UUID), code (unique 6-char), fen (board state),
-captured_pieces, room_status, game_status,
-white_player (FK), black_player (FK), last_activity
-```
-
-**GameMoves**:
-```sql
-id (UUID), room_id (FK), moved_by (FK),
-move_number, move_notation (algebraic)
-```
-
-### Project Structure
-
-```
-src/main/java/com/mychess/my_chess_backend/
-├── configs/
-│   ├── SecurityConfig.java              # JWT + CORS + stateless sessions
-│   ├── WebSocketConfig.java             # WebSocket endpoints
-│   └── filters/JwtAuthenticationFilter  # Token validation
-├── controllers/
-│   ├── auth/AuthController              # Signup, login
-│   ├── user/UserController              # Get current user
-│   └── room/RoomController              # CRUD + move submission
-├── models/                              # JPA entities (User, Room, GameMove)
-├── repositories/                        # Spring Data JPA
-├── services/
-│   ├── auth/                            # AuthService, JWTService
-│   ├── room/                            # RoomService (game logic)
-│   └── user/                            # UserService
-├── dtos/                                # Request/Response DTOs
-├── utils/
-│   ├── FenUtils.java                    # FEN parsing/generation
-│   ├── MoveUtils.java                   # Chess validation
-│   └── CapturedPieceUtil.java           # Capture tracking
-├── exceptions/
-│   └── GlobalExceptionHandler.java      # Centralized error handling
-└── websocket/
-    └── RoomWebSocketHandler.java        # WebSocket logic
 ```
 
 ## 🚀 Quick Start
@@ -287,77 +248,11 @@ Format: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 - Format: `b{pieces}/w{pieces}` (e.g., `bPN/wRQ`)
 - Tracked in Room entity
 
-## 🏗️ Build & Deploy
-
-### Production Build
-```bash
-# Build JAR
-mvn clean package -DskipTests
-
-# Output: target/my-chess-backend-0.0.1-SNAPSHOT.jar
-
-# Run
-java -jar target/my-chess-backend-0.0.1-SNAPSHOT.jar
-```
-
-### Docker Deployment
-```dockerfile
-FROM eclipse-temurin:24-jdk AS build
-WORKDIR /app
-COPY pom.xml .
-COPY src ./src
-RUN ./mvnw clean package -DskipTests
-
-FROM eclipse-temurin:24-jre
-WORKDIR /app
-COPY --from=build /app/target/*.jar app.jar
-EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
-```
-
-```bash
-# Build and run
-docker build -t mychess-backend .
-docker run -p 8080:8080 \
-  -e JWT_KEY="secret" \
-  -e DB_URL="jdbc:postgresql://host:5432/mychess" \
-  mychess-backend
-```
-
-### Docker Compose (Full Stack)
-```yaml
-version: '3.8'
-services:
-  postgres:
-    image: postgres:latest
-    environment:
-      POSTGRES_DB: mychess
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: pass
-    ports: ["5432:5432"]
-  backend:
-    build: .
-    ports: ["8080:8080"]
-    environment:
-      JWT_KEY: "secret"
-      DB_URL: "jdbc:postgresql://postgres:5432/mychess"
-    depends_on: [postgres]
-```
-
-## 🧪 Testing
-
-```bash
-mvn test                    # Run unit tests
-mvn verify                  # Run integration tests
-mvn test jacoco:report      # Generate coverage report
-```
-
 ## 📊 Performance Optimizations
 
 - **HikariCP**: Maximum pool size of 5 connections
 - **Async Broadcasting**: ExecutorService for WebSocket messages
 - **JPA Optimization**: `spring.jpa.hibernate.ddl-auto=update` (dev), `validate` (prod)
-- **Connection Pooling**: Jedis with 50 total, 10 idle, 5 min
 
 ## 🐛 Troubleshooting
 
