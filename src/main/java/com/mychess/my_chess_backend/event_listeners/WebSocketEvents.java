@@ -15,7 +15,7 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 import java.security.Principal;
 
-@Component
+// This can be used to check whether a user is active or not, for future development this is useful
 public class WebSocketEvents {
     private final SimpMessagingTemplate messagingTemplate;
     private final UserService userService;

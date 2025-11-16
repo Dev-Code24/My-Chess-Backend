@@ -237,6 +237,43 @@ public class RoomService extends RoomServiceHelper {
         this.roomRepository.save(room);
     }
 
+    public void handlePlayerJoinRoom(String code, User user) {
+        Room room = this.roomRepository.findByCode(code)
+                .orElseThrow(() -> new RoomNotFoundException(code));
+
+        String message = "Player " + user.getUsername() + " joined the room.";
+        this.broadcastRoomUpdate(code, message);
+
+        user.setInGame(true);
+        this.userService.updateUser(user);
+
+        // Resume game if both players are present and game is waiting or paused
+        if (room.getWhitePlayer() != null && room.getBlackPlayer() != null &&
+                (room.getGameStatus() != GameStatus.IN_PROGRESS)) {
+            room.setGameStatus(GameStatus.IN_PROGRESS);
+            this.roomRepository.save(room);
+            this.broadcastRoomUpdate(room.getCode(), "Game resumed");
+        }
+    }
+
+    public void handlePlayerLeaveRoom(String code, User user) {
+        Room room = this.roomRepository.findByCode(code)
+                .orElseThrow(() -> new RoomNotFoundException(code));
+
+        String message = "Player " + user.getUsername() + " left the room.";
+        this.broadcastRoomUpdate(code, message);
+
+        user.setInGame(false);
+        this.userService.updateUser(user);
+
+        if (room.getGameStatus() == GameStatus.IN_PROGRESS) {
+            room.setGameStatus(GameStatus.PAUSED);
+            this.roomRepository.save(room);
+            this.broadcastRoomUpdate(room.getCode(), "Game is paused");
+
+        }
+    }
+
     private void broadcastRoomUpdate(String roomCode, Object data) {
         this.simpMessagingTemplate.convertAndSend("/topic/room." + roomCode, data);
     }
