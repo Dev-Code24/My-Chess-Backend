@@ -46,10 +46,11 @@ public class WebSocketEvents {
 
         String code = room.getCode();
         String message = "Player " + disconnectedUser.getUsername() + " disconnected.";
-        messagingTemplate.convertAndSend("/topic/room." + code, message);
+        System.out.println(message);
+        this.messagingTemplate.convertAndSend("/topic/room." + code, message);
         disconnectedUser.setInGame(false);
         this.userService.updateUser(disconnectedUser);
-        room.setGameStatus(GameStatus.PAUSED);
+//        room.setGameStatus(GameStatus.PAUSED);
         this.roomService.updateRoom(room);
     }
 
@@ -68,9 +69,9 @@ public class WebSocketEvents {
         String code = room.getCode();
         String message = "Player " + connectedUser.getUsername() + " connected.";
         messagingTemplate.convertAndSend("/topic/room." + code, message);
-        connectedUser.setInGame(false);
+        connectedUser.setInGame(true);
         this.userService.updateUser(connectedUser);
-        room.setGameStatus(GameStatus.PAUSED);
+//        room.setGameStatus(GameStatus.IN_PROGRESS);
         this.roomService.updateRoom(room);
     }
 

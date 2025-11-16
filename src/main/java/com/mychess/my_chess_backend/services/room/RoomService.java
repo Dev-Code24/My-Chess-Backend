@@ -86,6 +86,7 @@ public class RoomService extends RoomServiceHelper {
 
         blackPlayer.setInGame(true);
         room.setBlackPlayer(blackPlayer.getId()).setRoomStatus(RoomStatus.OCCUPIED).setGameStatus(GameStatus.IN_PROGRESS);
+        room.setGameStatus(GameStatus.IN_PROGRESS);
         this.userService.updateUser(blackPlayer);
 
         RoomDTO roomDto = new RoomDTO().setCode(room.getCode());
