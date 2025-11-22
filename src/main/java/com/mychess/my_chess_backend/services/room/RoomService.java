@@ -149,11 +149,11 @@ public class RoomService extends RoomServiceHelper {
         boolean isWhiteTurn = FenUtils.getTurn(room.getFen()).equals("w");
         boolean isPlayerWhite = Objects.equals(room.getWhitePlayer(), player.getId());
 
-        if (isWhiteTurn && !isPlayerWhite) {
+        if (isWhiteTurn && !isPlayerWhite && move.getMoveDetails().getPromotion() != Boolean.TRUE) {
             throw new MoveNotAllowed(ErrorMessage.WHITES_TURN.getValue());
         }
 
-        if (!isWhiteTurn && isPlayerWhite) {
+        if (!isWhiteTurn && isPlayerWhite && move.getMoveDetails().getPromotion() != Boolean.TRUE) {
             throw new MoveNotAllowed(ErrorMessage.BLACKS_TURN.getValue());
         }
 
