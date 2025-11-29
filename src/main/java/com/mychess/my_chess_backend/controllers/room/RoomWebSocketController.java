@@ -39,14 +39,4 @@ public class RoomWebSocketController {
         User user = (User) auth.getPrincipal();
         this.roomService.handlePlayerJoinRoom(code, user);
     }
-
-    @MessageMapping("/room/{code}/leave")
-    public void leaveRoom(
-            @DestinationVariable String code,
-            Principal userPrincipal
-    ) {
-        Authentication auth = (Authentication) userPrincipal;
-        User user = (User) auth.getPrincipal();
-        this.roomService.handlePlayerLeaveRoom(code, user);
-    }
 }

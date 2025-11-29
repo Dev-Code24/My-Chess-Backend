@@ -7,6 +7,6 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class JoiningRoomDTO {
+public class RequestRoomDTO {
     private String code;
 }
