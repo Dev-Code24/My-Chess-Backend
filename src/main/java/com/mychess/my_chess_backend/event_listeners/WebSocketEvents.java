@@ -16,6 +16,7 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 import java.security.Principal;
 
 // This can be used to check whether a user is active or not, for future development this is useful
+@Component
 public class WebSocketEvents {
     private final SimpMessagingTemplate messagingTemplate;
     private final UserService userService;
@@ -45,35 +46,34 @@ public class WebSocketEvents {
         }
 
         String code = room.getCode();
-        String message = "Player " + disconnectedUser.getUsername() + " disconnected.";
-        System.out.println(message);
+        String message = "Player " + disconnectedUser.getUsername() + " left the room.";
         this.messagingTemplate.convertAndSend("/topic/room." + code, message);
         disconnectedUser.setInGame(false);
         this.userService.updateUser(disconnectedUser);
-//        room.setGameStatus(GameStatus.PAUSED);
+        room.setGameStatus(GameStatus.PAUSED);
         this.roomService.updateRoom(room);
     }
 
-    @EventListener
-    public void handleConnect(SessionConnectEvent event) {
-        User connectedUser = this.extractUser(event);
-        if (connectedUser == null) {
-            return;
-        }
-        Room room = this.roomService.getRoomByUserId(connectedUser.getId());
-
-        if (room == null) {
-            return;
-        }
-
-        String code = room.getCode();
-        String message = "Player " + connectedUser.getUsername() + " connected.";
-        messagingTemplate.convertAndSend("/topic/room." + code, message);
-        connectedUser.setInGame(true);
-        this.userService.updateUser(connectedUser);
-//        room.setGameStatus(GameStatus.IN_PROGRESS);
-        this.roomService.updateRoom(room);
-    }
+//    @EventListener
+//    public void handleConnect(SessionConnectEvent event) {
+//        User connectedUser = this.extractUser(event);
+//        if (connectedUser == null) {
+//            return;
+//        }
+//        Room room = this.roomService.getRoomByUserId(connectedUser.getId());
+//
+//        if (room == null) {
+//            return;
+//        }
+//
+//        String code = room.getCode();
+//        String message = "Player " + connectedUser.getUsername() + " connected.";
+//        messagingTemplate.convertAndSend("/topic/room." + code, message);
+//        connectedUser.setInGame(true);
+//        this.userService.updateUser(connectedUser);
+////        room.setGameStatus(GameStatus.IN_PROGRESS);
+//        this.roomService.updateRoom(room);
+//    }
 
     private User extractUser(AbstractSubProtocolEvent event) {
         Principal principal = event.getUser();

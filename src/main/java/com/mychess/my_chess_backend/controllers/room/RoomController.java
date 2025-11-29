@@ -1,6 +1,6 @@
 package com.mychess.my_chess_backend.controllers.room;
 
-import com.mychess.my_chess_backend.dtos.requests.room.JoiningRoomDTO;
+import com.mychess.my_chess_backend.dtos.requests.room.RequestRoomDTO;
 import com.mychess.my_chess_backend.dtos.responses.BasicResponseDTO;
 import com.mychess.my_chess_backend.dtos.responses.room.RoomDTO;
 import com.mychess.my_chess_backend.models.User;
@@ -11,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+
+import java.security.Principal;
 
 @RequestMapping("/room")
 @RestController
@@ -40,16 +42,35 @@ public class RoomController {
     @PostMapping("/join")
     public ResponseEntity<BasicResponseDTO<RoomDTO>> joinRoom(
             HttpServletRequest req,
-            @RequestBody JoiningRoomDTO roomDetails
+            @RequestBody RequestRoomDTO requestRoomDto
     ) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User blackPlayer = (User) authentication.getPrincipal();
-        RoomDTO room = this.roomService.joinRoom(blackPlayer, roomDetails.getCode());
+        RoomDTO room = this.roomService.joinRoom(blackPlayer, requestRoomDto.getCode());
 
         return ResponseEntity.ok(new BasicResponseDTO<>(
                 "success",
                 HttpStatus.OK.value(),
                 room,
+                req.getRequestURI()
+        ));
+    }
+
+    @PostMapping("/leave")
+    public ResponseEntity<BasicResponseDTO<RoomDTO>> leaveRoom(
+            @RequestBody RequestRoomDTO requestRoomDto,
+            Principal userPrincipal,
+            HttpServletRequest req
+    ) {
+        Authentication auth = (Authentication) userPrincipal;
+        User user = (User) auth.getPrincipal();
+        String code = requestRoomDto.getCode();
+        RoomDTO roomDTO = this.roomService.handlePlayerLeaveRoom(code, user);
+
+        return ResponseEntity.ok(new BasicResponseDTO<>(
+                "success",
+                HttpStatus.OK.value(),
+                roomDTO,
                 req.getRequestURI()
         ));
     }

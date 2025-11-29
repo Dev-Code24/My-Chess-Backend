@@ -4,7 +4,6 @@ import com.mychess.my_chess_backend.models.User;
 import com.mychess.my_chess_backend.repositories.UserRepository;
 import org.springframework.stereotype.Service;
 
-import java.util.Optional;
 import java.util.UUID;
 
 @Service
