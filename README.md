@@ -7,7 +7,7 @@ A production-ready Spring Boot REST API for real-time multiplayer chess, featuri
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Latest-blue?logo=postgresql)
 ![WebSocket](https://img.shields.io/badge/WebSocket-6.2.12-yellow)
 
-<img width="1680" height="1050" alt="Screenshot 2025-11-18 at 6 30 27 PM" src="https://github.com/user-attachments/assets/b7d2ea60-4811-497f-9e40-0ded6a077dcb" />
+<img width="1408" height="3040" alt="Preview of MyChess on Macbook and iPhone" src="https://github.com/user-attachments/assets/d5dc07dc-2d10-475c-a9bc-b0bbdec4380b" />
 
 ## ✨ Key Features
 
