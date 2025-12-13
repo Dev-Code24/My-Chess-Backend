@@ -17,9 +17,9 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
 
     public AuthService(
-            UserRepository userRepository,
-            PasswordEncoder passwordEncoder,
-            AuthenticationManager authenticationManager
+        UserRepository userRepository,
+        PasswordEncoder passwordEncoder,
+        AuthenticationManager authenticationManager
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
@@ -28,9 +28,10 @@ public class AuthService {
 
     public User signUp(RegisteringUserDTO user) {
         User newUser = new User()
-                .setUsername(user.getUsername())
-                .setEmail(user.getEmail())
-                .setPassword(this.passwordEncoder.encode(user.getPassword()));
+            .setUsername(user.getUsername())
+            .setEmail(user.getEmail())
+            .setPassword(this.passwordEncoder.encode(user.getPassword()))
+            .setIsActive(true);
 
         if (user.getAuthProvider() == null || user.getAuthProvider() == AuthProvider.LOCAL) {
             newUser.setAuthProvider(AuthProvider.LOCAL);
@@ -40,8 +41,16 @@ public class AuthService {
     }
     public User authenticate(AuthenticatingUserDTO user) {
         this.authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(user.getEmail(), user.getPassword())
+            new UsernamePasswordAuthenticationToken(user.getEmail(), user.getPassword())
         );
-        return this.userRepository.findByEmail(user.getEmail()).orElseThrow();
+        User authenticatedUser = this.userRepository.findByEmail(user.getEmail()).orElseThrow();
+        authenticatedUser.setIsActive(true);
+        return this.userRepository.save(authenticatedUser);
+    }
+
+    public void logout(User user) {
+        user.setIsActive(false);
+        user.setInGame(false);
+        this.userRepository.save(user);
     }
 }
