@@ -13,8 +13,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.time.Duration;
 import java.util.function.Supplier;
 
@@ -25,8 +27,8 @@ public class AuthController {
     private final AuthService authService;
 
     public AuthController(
-            JWTService jwtService,
-            AuthService authService
+        JWTService jwtService,
+        AuthService authService
     ) {
         this.jwtService = jwtService;
         this.authService = authService;
@@ -34,8 +36,8 @@ public class AuthController {
 
     @PostMapping("/signup")
     public ResponseEntity<BasicResponseDTO<RegisteredUserDTO>> signUp(
-            @RequestBody RegisteringUserDTO user,
-            HttpServletRequest req
+        @RequestBody RegisteringUserDTO user,
+        HttpServletRequest req
     ) {
         // TODO: Search what is actually sent in selfLink property in production backends
         String username = user.getUsername();
@@ -46,49 +48,77 @@ public class AuthController {
         User newUser = this.authService.signUp(user);
 
         return this.issueTokensAndRespond(newUser, () ->
-                new BasicResponseDTO<>(
-                        "success",
-                        HttpStatus.OK.value(),
-                        new RegisteredUserDTO(newUser.getEmail(), newUser.getUsername()),
-                        req.getRequestURI()
-                )
+            new BasicResponseDTO<>(
+                "success",
+                HttpStatus.OK.value(),
+                new RegisteredUserDTO(newUser.getEmail(), newUser.getUsername()),
+                req.getRequestURI()
+            )
         );
     }
     @PostMapping("/login")
     public ResponseEntity<BasicResponseDTO<AuthenticatedUserDTO>> login(
-            @RequestBody AuthenticatingUserDTO user,
-            HttpServletRequest req
+        @RequestBody AuthenticatingUserDTO user,
+        HttpServletRequest req
     ) {
         User authenticatedUser = this.authService.authenticate(user);
         return this.issueTokensAndRespond(authenticatedUser, () ->
-                new BasicResponseDTO<>(
-                        "success",
-                        HttpStatus.OK.value(),
-                        new AuthenticatedUserDTO(
-                                authenticatedUser.getEmail(),
-                                authenticatedUser.getUsername(),
-                                authenticatedUser.getInGame()),
-                        req.getRequestURI()
-                )
+            new BasicResponseDTO<>(
+                "success",
+                HttpStatus.OK.value(),
+                new AuthenticatedUserDTO(
+                    authenticatedUser.getEmail(),
+                    authenticatedUser.getUsername(),
+                    authenticatedUser.getInGame()),
+                req.getRequestURI()
+            )
         );
     }
 
+    @PostMapping("/logout")
+    public ResponseEntity<BasicResponseDTO<Void>> logout (
+        HttpServletRequest req,
+        Principal userPrincipal
+    ) {
+        Authentication auth = (Authentication) userPrincipal;
+        User user = (User) auth.getPrincipal();
+        this.authService.logout(user);
+
+        ResponseCookie cookie = ResponseCookie.from("access_token", "")
+            .httpOnly(true)
+            .secure(false)
+            .path("/")
+            .sameSite("Lax")
+            .maxAge(0)
+            .build();
+
+        return ResponseEntity
+            .ok()
+            .header("Set-Cookie", cookie.toString())
+            .body(new BasicResponseDTO<>(
+                "success",
+                HttpStatus.OK.value(),
+                null,
+                req.getRequestURI()
+            ));
+    }
+
     private <T> ResponseEntity<T> issueTokensAndRespond (
-            User user,
-            Supplier<T> bodyFactory
+        User user,
+        Supplier<T> bodyFactory
     ) {
         final String jwt = this.jwtService.generateToken(user);
         ResponseCookie cookie = ResponseCookie.from("access_token", jwt)
-                .httpOnly(true)
-                .secure(false)
-                .path("/")
-                .sameSite("Lax") // Change this before deploying to prod
-                .maxAge(Duration.ofSeconds(this.jwtService.getJwtExpiration().toSeconds()))
-                .build();
+            .httpOnly(true)
+            .secure(false)
+            .path("/")
+            .sameSite("Lax")
+            .maxAge(Duration.ofSeconds(this.jwtService.getJwtExpiration().toSeconds()))
+            .build();
         T body = bodyFactory.get();
         return ResponseEntity
-                .ok()
-                .header("Set-Cookie", cookie.toString())
-                .body(body);
+            .ok()
+            .header("Set-Cookie", cookie.toString())
+            .body(body);
     }
 }
