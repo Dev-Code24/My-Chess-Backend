@@ -1,7 +1,6 @@
 package com.mychess.my_chess_backend.controllers.auth;
 
 import com.mychess.my_chess_backend.dtos.requests.auth.AuthenticatingUserDTO;
-import com.mychess.my_chess_backend.dtos.requests.auth.LogoutUserDTO;
 import com.mychess.my_chess_backend.dtos.requests.auth.RegisteringUserDTO;
 import com.mychess.my_chess_backend.dtos.responses.BasicResponseDTO;
 import com.mychess.my_chess_backend.dtos.responses.auth.AuthenticatedUserDTO;
@@ -77,8 +76,7 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<BasicResponseDTO<LogoutUserDTO>> logout (
-        @RequestBody LogoutUserDTO userDto,
+    public ResponseEntity<BasicResponseDTO<Void>> logout (
         HttpServletRequest req,
         Principal userPrincipal
     ) {
@@ -114,7 +112,7 @@ public class AuthController {
             .httpOnly(true)
             .secure(false)
             .path("/")
-            .sameSite("Lax") // Change this before deploying to prod
+            .sameSite("Lax")
             .maxAge(Duration.ofSeconds(this.jwtService.getJwtExpiration().toSeconds()))
             .build();
         T body = bodyFactory.get();
