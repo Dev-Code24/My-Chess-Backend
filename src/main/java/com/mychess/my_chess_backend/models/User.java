@@ -48,13 +48,13 @@ public class User implements UserDetails, Principal {
     private String password;
 
     @ColumnDefault("false")
-    private Boolean twoFactorEnabled;
+    private Boolean twoFactorEnabled = false;
 
     @ColumnDefault("false")
-    private Boolean isActive;
+    private Boolean isActive = false;
 
     @ColumnDefault("false")
-    private Boolean inGame;
+    private Boolean inGame = false;
 
 //    private LocalDateTime lastActive;
 

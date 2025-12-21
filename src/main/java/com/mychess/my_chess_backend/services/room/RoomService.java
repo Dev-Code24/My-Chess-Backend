@@ -6,7 +6,7 @@ import com.mychess.my_chess_backend.dtos.responses.room.RoomDTO;
 import com.mychess.my_chess_backend.dtos.shared.Piece;
 import com.mychess.my_chess_backend.dtos.shared.Move;
 import com.mychess.my_chess_backend.dtos.shared.Position;
-import com.mychess.my_chess_backend.exceptions.room.ErrorMessage;
+import com.mychess.my_chess_backend.exceptions.room.RoomErrorMessage;
 import com.mychess.my_chess_backend.exceptions.room.MoveNotAllowed;
 import com.mychess.my_chess_backend.models.Room;
 import com.mychess.my_chess_backend.models.User;
@@ -73,15 +73,15 @@ public class RoomService extends RoomServiceHelper {
         Room room = roomRepository.findByCode(code).orElseThrow(() -> new RoomNotFoundException(code));
 
         if (existingRoom != null && !existingRoom.getCode().equals(room.getCode())) {
-            throw new RoomJoinNotAllowedException(ErrorMessage.ALREADY_IN_ROOM.getValue());
+            throw new RoomJoinNotAllowedException(RoomErrorMessage.ALREADY_IN_ROOM.getValue());
         }
 
         if (room.getWhitePlayer().equals(blackPlayer.getId())) {
-            throw new RoomJoinNotAllowedException(ErrorMessage.CANNOT_JOIN_YOUR_OWN_ROOM.getValue());
+            throw new RoomJoinNotAllowedException(RoomErrorMessage.CANNOT_JOIN_YOUR_OWN_ROOM.getValue());
         }
 
         if (room.getBlackPlayer() != null && !room.getBlackPlayer().equals(blackPlayer.getId())) {
-            throw new RoomJoinNotAllowedException(ErrorMessage.ROOM_ALREADY_FULL.getValue());
+            throw new RoomJoinNotAllowedException(RoomErrorMessage.ROOM_ALREADY_FULL.getValue());
         }
 
         blackPlayer.setInGame(true);
@@ -139,22 +139,22 @@ public class RoomService extends RoomServiceHelper {
                 !Objects.equals(room.getWhitePlayer(), player.getId()) &&
                 !Objects.equals(room.getBlackPlayer(), player.getId())
         ) {
-            throw new RoomJoinNotAllowedException(ErrorMessage.UNAUTHORIZED_MOVE.getValue());
+            throw new RoomJoinNotAllowedException(RoomErrorMessage.UNAUTHORIZED_MOVE.getValue());
         }
 
         if (room.getGameStatus() != GameStatus.IN_PROGRESS) {
-            throw new RoomJoinNotAllowedException(ErrorMessage.GAME_INACTIVE.getValue());
+            throw new RoomJoinNotAllowedException(RoomErrorMessage.GAME_INACTIVE.getValue());
         }
 
         boolean isWhiteTurn = FenUtils.getTurn(room.getFen()).equals("w");
         boolean isPlayerWhite = Objects.equals(room.getWhitePlayer(), player.getId());
 
         if (isWhiteTurn && !isPlayerWhite && move.getMoveDetails().getPromotion() != Boolean.TRUE) {
-            throw new MoveNotAllowed(ErrorMessage.WHITES_TURN.getValue());
+            throw new MoveNotAllowed(RoomErrorMessage.WHITES_TURN.getValue());
         }
 
         if (!isWhiteTurn && isPlayerWhite && move.getMoveDetails().getPromotion() != Boolean.TRUE) {
-            throw new MoveNotAllowed(ErrorMessage.BLACKS_TURN.getValue());
+            throw new MoveNotAllowed(RoomErrorMessage.BLACKS_TURN.getValue());
         }
 
         this.handleMove(move, room);

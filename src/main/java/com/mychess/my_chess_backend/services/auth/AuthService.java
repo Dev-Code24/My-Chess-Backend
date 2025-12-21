@@ -2,6 +2,8 @@ package com.mychess.my_chess_backend.services.auth;
 
 import com.mychess.my_chess_backend.dtos.requests.auth.AuthenticatingUserDTO;
 import com.mychess.my_chess_backend.dtos.requests.auth.RegisteringUserDTO;
+import com.mychess.my_chess_backend.exceptions.user.UserAlreadyExistsException;
+import com.mychess.my_chess_backend.exceptions.user.UserErrorMessage;
 import com.mychess.my_chess_backend.models.User;
 import com.mychess.my_chess_backend.utils.enums.AuthProvider;
 import com.mychess.my_chess_backend.repositories.UserRepository;
@@ -27,6 +29,12 @@ public class AuthService {
     }
 
     public User signUp(RegisteringUserDTO user) {
+        User registeredUser = this.userRepository.findByEmail(user.getEmail()).orElse(null);
+
+        if (registeredUser != null) {
+            throw new UserAlreadyExistsException(UserErrorMessage.EMAIL_ALREADY_EXISTS.getValue());
+        }
+
         User newUser = new User()
             .setUsername(user.getUsername())
             .setEmail(user.getEmail())

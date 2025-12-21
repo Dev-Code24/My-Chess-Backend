@@ -3,7 +3,7 @@ package com.mychess.my_chess_backend.exceptions.room;
 import lombok.Getter;
 
 @Getter
-public enum ErrorMessage {
+public enum RoomErrorMessage {
     ALREADY_IN_ROOM("You are already in another room."),
     CANNOT_JOIN_YOUR_OWN_ROOM("You cannot join your own room as opponent."),
     ROOM_ALREADY_FULL("This room is already full."),
@@ -13,5 +13,5 @@ public enum ErrorMessage {
     BLACKS_TURN("It's Black's turn.");
 
     private final String value;
-    ErrorMessage(String value) { this.value = value; }
+    RoomErrorMessage(String value) { this.value = value; }
 }
