@@ -20,18 +20,18 @@ A production-ready Spring Boot REST API for real-time multiplayer chess, featuri
 
 ## 🛠️ Tech Stack
 
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| **Spring Boot** | 3.4.8 | Application framework |
-| **Java** | 24 | Programming language |
-| **Spring Security** | 6.x | Authentication & authorization |
-| **Spring Data JPA** | 3.5.7 | ORM and data access |
-| **Spring WebSocket** | 6.2.12 | Real-time communication with STOMP |
-| **PostgreSQL** | Latest | Relational database |
-| **JJWT** | 0.11.5 | JWT token management |
-| **Lombok** | Latest | Boilerplate reduction with @Builder |
+| Technology | Version  | Purpose |
+|------------|----------|---------|
+| **Spring Boot** | 3.4.8    | Application framework |
+| **Java** | 21       | Programming language |
+| **Spring Security** | 6.x      | Authentication & authorization |
+| **Spring Data JPA** | 3.5.7    | ORM and data access |
+| **Spring WebSocket** | 6.2.12   | Real-time communication with STOMP |
+| **PostgreSQL** | Latest   | Relational database |
+| **JJWT** | 0.11.5   | JWT token management |
+| **Lombok** | Latest   | Boilerplate reduction with @Builder |
 | **HikariCP** | Embedded | Connection pooling |
-| **Maven** | 3.x+ | Build management |
+| **Maven** | 3.x+     | Build management |
 
 ## 🏗️ Architecture & System Design
 
@@ -158,7 +158,7 @@ move_number, move_notation (algebraic)
 
 ### Prerequisites
 ```bash
-Java 24+, Maven 3+, PostgreSQL
+Java 21+, Maven 3+, PostgreSQL
 ```
 
 ### Environment Variables
@@ -326,4 +326,4 @@ spring.jpa.show-sql=true                       # Log SQL (dev)
 
 ---
 
-**Built with Spring Boot 3.4.8 • Java 24 • PostgreSQL • WebSocket**
+**Built with Spring Boot 3.4.8 • Java 21 • PostgreSQL • WebSocket**
