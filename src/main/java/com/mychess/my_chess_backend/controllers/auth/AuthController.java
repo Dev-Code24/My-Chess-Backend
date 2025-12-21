@@ -86,9 +86,9 @@ public class AuthController {
 
         ResponseCookie cookie = ResponseCookie.from("access_token", "")
             .httpOnly(true)
-            .secure(false)
+            .secure(true)
             .path("/")
-            .sameSite("Lax")
+            .sameSite("None")
             .maxAge(0)
             .build();
 
@@ -110,9 +110,9 @@ public class AuthController {
         final String jwt = this.jwtService.generateToken(user);
         ResponseCookie cookie = ResponseCookie.from("access_token", jwt)
             .httpOnly(true)
-            .secure(false)
+            .secure(true)
             .path("/")
-            .sameSite("Lax")
+            .sameSite("None")
             .maxAge(Duration.ofSeconds(this.jwtService.getJwtExpiration().toSeconds()))
             .build();
         T body = bodyFactory.get();
