@@ -33,4 +33,5 @@ build/
 .vscode/
 
 ### Secrets ###
-.env
+env.yaml
+env.dev.yaml
