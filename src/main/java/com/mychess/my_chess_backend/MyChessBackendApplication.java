@@ -4,11 +4,14 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
 
 @SpringBootApplication
+@EnableScheduling
 public class MyChessBackendApplication {
 
 	public static void main(String[] args) {
@@ -24,6 +27,25 @@ public class MyChessBackendApplication {
 			} catch (Exception e) {
 				System.err.println("❌ DB connection failed: " + e.getMessage());
 				e.printStackTrace();
+			}
+		};
+	}
+
+	@Bean
+	public CommandLineRunner testRedisConnection(RedisTemplate<String, Object> redisTemplate) {
+		return args -> {
+			try {
+				redisTemplate.opsForValue().set("startup_health_check", "connected");
+				String result = (String) redisTemplate.opsForValue().get("startup_health_check");
+
+				if ("connected".equals(result)) {
+					System.out.println("✅ Redis connection successful! Startup check passed.");
+					redisTemplate.delete("startup_health_check");
+				} else {
+					System.err.println("❌ Redis connection check failed: Unexpected result.");
+				}
+			} catch (Exception e) {
+				System.err.println("❌ Redis connection failed: " + e.getMessage());
 			}
 		};
 	}
