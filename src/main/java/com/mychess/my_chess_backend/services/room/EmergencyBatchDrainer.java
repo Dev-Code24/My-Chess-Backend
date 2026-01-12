@@ -22,7 +22,7 @@ public class EmergencyBatchDrainer {
   }
 
   // Runs frequently to check if there are buffered moves to "trickle" into the DB
-  @Scheduled(fixedDelay = 2000) // 2-second interval
+  @Scheduled(fixedDelay = 2000)
   @Transactional
   public void drainEmergencyQueue() {
     if (emergencyBuffer.getEmergencyQueue().isEmpty()) { return; }
@@ -30,12 +30,11 @@ public class EmergencyBatchDrainer {
     List<EmergencyBufferService.QueueItem> batch = new ArrayList<>();
     emergencyBuffer.getEmergencyQueue().drainTo(batch, 50);
 
-    // (If a room had 5 moves in the queue, we only care about the final one)
     Map<String, EmergencyBufferService.QueueItem> latestStates = batch.stream()
         .collect(Collectors.toMap(
             EmergencyBufferService.QueueItem::code,
             item -> item,
-            (existing, replacement) -> replacement // Keep the newest FEN/State
+            (existing, replacement) -> replacement
         ));
 
     List<Room> rooms = roomRepository.findAllByCodeIn(latestStates.keySet());
