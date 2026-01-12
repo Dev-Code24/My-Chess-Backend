@@ -9,7 +9,9 @@ import java.util.*;
 
 public interface RoomRepository extends JpaRepository<Room, UUID> {
     Optional<Room> findByCode(String code);
+    List<Room> findAllByCodeIn(Collection<String> codes);
 
     @Query("SELECT room FROM Room room WHERE :userId IN (room.blackPlayer, room.whitePlayer)")
     Optional<Room> findRoomByUserId(@Param("userId") UUID userId);
+
 }

@@ -1,5 +1,6 @@
 package com.mychess.my_chess_backend.services.room;
 
+import com.mychess.my_chess_backend.dtos.redis.MoveCache;
 import com.mychess.my_chess_backend.dtos.responses.auth.AuthenticatedUserDTO;
 import com.mychess.my_chess_backend.dtos.responses.room.PieceMovedResponseDTO;
 import com.mychess.my_chess_backend.dtos.responses.room.RoomDTO;
@@ -30,6 +31,7 @@ import java.util.*;
 public class RoomService extends RoomServiceHelper {
     private final RoomRepository roomRepository;
     private final UserService userService;
+    private final RedisGameService redisGameService;
     private final SimpMessagingTemplate simpMessagingTemplate;
 
     private static final Random random = new Random();
@@ -37,10 +39,12 @@ public class RoomService extends RoomServiceHelper {
     public RoomService(
             RoomRepository roomRepository,
             UserService userService,
+            RedisGameService redisGameService,
             SimpMessagingTemplate simpMessagingTemplate
     ) {
         this.roomRepository = roomRepository;
         this.userService = userService;
+        this.redisGameService = redisGameService;
         this.simpMessagingTemplate = simpMessagingTemplate;
     }
 
@@ -131,23 +135,35 @@ public class RoomService extends RoomServiceHelper {
 
     public void processPlayerMove(
             Move move,
-            String code,
+            String roomId,
             User player
     ) {
-        Room room = this.roomRepository.findByCode(code).orElseThrow(() -> new RoomNotFoundException(code));
-        if (
-                !Objects.equals(room.getWhitePlayer(), player.getId()) &&
-                !Objects.equals(room.getBlackPlayer(), player.getId())
-        ) {
+        MoveCache cache = this.redisGameService.getMoveCache(roomId);
+
+        if (cache == null) {
+            Room room = this.roomRepository.findByCode(roomId).orElseThrow(() -> new RoomNotFoundException(roomId));
+            cache = MoveCache.builder()
+                .fen(room.getFen())
+                .capturedPieces(room.getCapturedPieces())
+                .whitePlayerId(room.getWhitePlayer())
+                .blackPlayerId(room.getBlackPlayer())
+                .gameStatus(room.getGameStatus())
+                .lastActivity(room.getLastActivity())
+                .build();
+            redisGameService.saveMoveCache(roomId, cache);
+        }
+
+        if (!Objects.equals(cache.getWhitePlayerId(), player.getId()) &&
+            !Objects.equals(cache.getBlackPlayerId(), player.getId())) {
             throw new RoomJoinNotAllowedException(RoomErrorMessage.UNAUTHORIZED_MOVE.getValue());
         }
 
-        if (room.getGameStatus() != GameStatus.IN_PROGRESS) {
+        if (cache.getGameStatus() != GameStatus.IN_PROGRESS) {
             throw new RoomJoinNotAllowedException(RoomErrorMessage.GAME_INACTIVE.getValue());
         }
 
-        boolean isWhiteTurn = FenUtils.getTurn(room.getFen()).equals("w");
-        boolean isPlayerWhite = Objects.equals(room.getWhitePlayer(), player.getId());
+        boolean isWhiteTurn = FenUtils.getTurn(cache.getFen()).equals("w");
+        boolean isPlayerWhite = Objects.equals(cache.getWhitePlayerId(), player.getId());
 
         if (isWhiteTurn && !isPlayerWhite && move.getMoveDetails().getPromotion() != Boolean.TRUE) {
             throw new MoveNotAllowed(RoomErrorMessage.WHITES_TURN.getValue());
@@ -157,15 +173,14 @@ public class RoomService extends RoomServiceHelper {
             throw new MoveNotAllowed(RoomErrorMessage.BLACKS_TURN.getValue());
         }
 
-        this.handleMove(move, room);
+        this.handleMove(move, roomId, cache);
     }
 
-    public void handleMove(Move move, Room room) {
+    public void handleMove(Move move, String roomId, MoveCache cache) {
         Piece movedPiece = move.getPiece();
         Piece targetPiece = move.getMoveDetails().getTargetPiece();
         Position targetPosition = move.getTo();
-        String fen = room.getFen();
-        String code = room.getCode();
+        String fen = cache.getFen();
 
         List<Piece> pieces = MoveUtils.handleMove(FenUtils.parseFenToPieces(fen), move);
         pieces = updateMovedPieceInList(pieces, movedPiece, targetPosition);
@@ -176,16 +191,19 @@ public class RoomService extends RoomServiceHelper {
         boolean checkMate = isCheckMate(move);
 
         if (targetPiece != null) {
-            String capturedPieces = CapturedPieceUtil.recordCapture(room.getCapturedPieces(), targetPiece);
-            room.setCapturedPieces(capturedPieces);
+            String capturedPieces = CapturedPieceUtil.recordCapture(cache.getCapturedPieces(), targetPiece);
+            cache.setCapturedPieces(capturedPieces);
         }
-        room.setFen(newFen);
-        room.setLastActivity(LocalDateTime.now());
+        cache.setFen(newFen);
+        cache.setLastActivity(LocalDateTime.now());
 
         PieceMovedResponseDTO responseDTO = new PieceMovedResponseDTO().setMove(move).setFen(newFen);
-        this.broadcastRoomUpdate(code, responseDTO);
+        this.broadcastRoomUpdate(roomId, responseDTO);
 
         if (checkMate) {
+            Room room = this.roomRepository.findByCode(roomId).orElseThrow(() -> new RoomNotFoundException(roomId));
+            room.setFen(cache.getFen());
+
             GameStatus whoWon = Objects.equals(move.getMoveDetails().getTargetPiece().getColor(), "w") ?
                     GameStatus.BLACK_WON :
                     GameStatus.WHITE_WON;
@@ -196,24 +214,26 @@ public class RoomService extends RoomServiceHelper {
 
             User whitePlayer = this.userService.getUserById(room.getWhitePlayer());
             User blackPlayer = this.userService.getUserById(room.getBlackPlayer());
-            if (room.getWhitePlayer() != null) {
+            if (cache.getWhitePlayerId() != null) {
                 whitePlayerDTO = this.getAuthenticatedUserDto(whitePlayer);
             }
-            if (room.getBlackPlayer() != null) {
+            if (cache.getBlackPlayerId() != null) {
                 blackPlayerDTO = this.getAuthenticatedUserDto(blackPlayer);
             }
             RoomDTO roomDTO = this.getRoomDto(room, whitePlayerDTO, blackPlayerDTO);
 
-            room.setBlackPlayer(null).setWhitePlayer(null);
+            cache.setBlackPlayerId(null).setWhitePlayerId(null);
             whitePlayer.setInGame(false);
             blackPlayer.setInGame(false);
 
             this.userService.updateUser(whitePlayer);
             this.userService.updateUser(blackPlayer);
-            this.broadcastRoomUpdate(code, roomDTO);
-            this.broadcastRoomUpdate(code, "Game has ended.");
+            this.broadcastRoomUpdate(roomId, roomDTO);
+            this.broadcastRoomUpdate(roomId, "Game has ended.");
+            this.roomRepository.save(room);
+        } else {
+            this.redisGameService.saveMoveCache(roomId, cache);
         }
-        this.roomRepository.save(room);
     }
 
     public Room getRoomByUserId(UUID userId) {
