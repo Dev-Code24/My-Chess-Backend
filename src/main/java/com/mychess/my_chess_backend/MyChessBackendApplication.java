@@ -5,13 +5,13 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.retry.annotation.EnableRetry;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
 
 @SpringBootApplication
-@EnableScheduling
+@EnableRetry
 public class MyChessBackendApplication {
 
 	public static void main(String[] args) {

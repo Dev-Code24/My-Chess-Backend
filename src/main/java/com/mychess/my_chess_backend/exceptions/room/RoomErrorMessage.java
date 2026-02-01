@@ -10,7 +10,8 @@ public enum RoomErrorMessage {
     UNAUTHORIZED_MOVE("Unauthorized move."),
     GAME_INACTIVE("Game is not active."),
     WHITES_TURN("It's White's turn."),
-    BLACKS_TURN("It's Black's turn.");
+    BLACKS_TURN("It's Black's turn."),
+    STALE_MOVE("This move has already been processed or is outdated.");
 
     private final String value;
     RoomErrorMessage(String value) { this.value = value; }

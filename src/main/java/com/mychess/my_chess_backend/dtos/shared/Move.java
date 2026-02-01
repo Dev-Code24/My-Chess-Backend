@@ -13,4 +13,5 @@ public class Move {
     private Piece piece;
     private Position to;
     private MoveDetails moveDetails;
+    private Long expectedMoveSequence;
 }

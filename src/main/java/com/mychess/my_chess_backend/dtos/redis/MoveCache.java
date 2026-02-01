@@ -20,4 +20,5 @@ public class MoveCache {
   private UUID blackPlayerId;
   private GameStatus gameStatus;
   private LocalDateTime lastActivity;
+  private Long moveSequence;
 }

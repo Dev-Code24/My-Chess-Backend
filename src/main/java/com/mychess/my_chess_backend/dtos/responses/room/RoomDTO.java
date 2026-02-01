@@ -23,6 +23,7 @@ public class RoomDTO {
     private String fen;
     private String capturedPieces;
     private LocalDateTime lastActivity;
+    private Long moveSequence;
     private AuthenticatedUserDTO whitePlayer;
     private AuthenticatedUserDTO blackPlayer;
 }
