@@ -1,8 +1,11 @@
 package com.mychess.my_chess_backend.services.room;
 
+import com.mychess.my_chess_backend.dtos.responses.auth.AuthenticatedUserDTO;
+import com.mychess.my_chess_backend.dtos.responses.room.RoomDTO;
 import com.mychess.my_chess_backend.dtos.shared.Move;
 import com.mychess.my_chess_backend.dtos.shared.Piece;
 import com.mychess.my_chess_backend.dtos.shared.Position;
+import com.mychess.my_chess_backend.models.Room;
 import com.mychess.my_chess_backend.utils.FenUtils;
 
 import java.util.ArrayList;
@@ -42,5 +45,18 @@ public class RoomServiceHelper {
         }
 
         return nextTurn;
+    }
+
+    protected RoomDTO getRoomDto(Room room, AuthenticatedUserDTO whitePlayerDTO, AuthenticatedUserDTO blackPlayerDTO) {
+        return new RoomDTO()
+            .setCode(room.getCode())
+            .setCapturedPieces(room.getCapturedPieces())
+            .setFen(room.getFen())
+            .setBlackPlayer(blackPlayerDTO)
+            .setWhitePlayer(whitePlayerDTO)
+            .setId(room.getId())
+            .setLastActivity(room.getLastActivity())
+            .setRoomStatus(room.getRoomStatus())
+            .setGameStatus(room.getGameStatus());
     }
 }

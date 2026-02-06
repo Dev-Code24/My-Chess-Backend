@@ -19,6 +19,7 @@ import com.mychess.my_chess_backend.utils.CapturedPieceUtil;
 import com.mychess.my_chess_backend.utils.FenUtils;
 import com.mychess.my_chess_backend.utils.MoveUtils;
 import com.mychess.my_chess_backend.utils.constants.RoomConstants;
+import com.mychess.my_chess_backend.utils.enums.EventType;
 import com.mychess.my_chess_backend.utils.enums.GameStatus;
 import com.mychess.my_chess_backend.utils.enums.RoomStatus;
 import com.mychess.my_chess_backend.exceptions.room.RoomJoinNotAllowedException;
@@ -104,27 +105,20 @@ public class RoomService extends RoomServiceHelper {
         RoomDTO roomDto = new RoomDTO().setCode(room.getCode());
         this.roomRepository.save(room);
         this.broadcastRoomUpdate(code, "Opponent Joined !");
+        this.redisEventPublisher.publishMessage(code, "Opponent Joined !");
         return roomDto;
     }
 
     public RoomDTO getRoom(String code) {
-        Room room = this.roomRepository.findByCode(code).orElse(null);
-        if (room == null) {
-            throw new RoomNotFoundException(code);
-        }
+        Room room = this.roomRepository.findByCode(code).orElseThrow(() -> new RoomNotFoundException(code));
 
         // Check Redis cache for latest game state
         MoveCache cache = this.redisGameService.getMoveCache(code);
 
-        // Use cache values if available, otherwise fall back to database
-        String fen = room.getFen();
-        String capturedPieces = room.getCapturedPieces();
-        Long moveSequence = room.getMoveSequence();
-
         if (cache != null) {
-            fen = cache.getFen();
-            capturedPieces = cache.getCapturedPieces();
-            moveSequence = cache.getMoveSequence() != null ? cache.getMoveSequence() : 0L;
+            room.setFen(cache.getFen());
+            room.setCapturedPieces(cache.getCapturedPieces());
+            room.setMoveSequence(cache.getMoveSequence() != null ? cache.getMoveSequence() : 0L);
         }
 
         AuthenticatedUserDTO whitePlayerDTO = null, blackPlayerDTO = null;
@@ -143,17 +137,7 @@ public class RoomService extends RoomServiceHelper {
                 .setUsername(blackPlayer.getUsername())
                 .setInGame(blackPlayer.getInGame());
         }
-        return new RoomDTO()
-            .setId(room.getId())
-            .setCode(room.getCode())
-            .setCapturedPieces(capturedPieces)
-            .setFen(fen)
-            .setRoomStatus(room.getRoomStatus())
-            .setGameStatus(room.getGameStatus())
-            .setLastActivity(room.getLastActivity())
-            .setMoveSequence(moveSequence)
-            .setWhitePlayer(whitePlayerDTO)
-            .setBlackPlayer(blackPlayerDTO);
+        return this.getRoomDto(room, whitePlayerDTO, blackPlayerDTO);
     }
 
     @Retryable(
@@ -185,13 +169,16 @@ public class RoomService extends RoomServiceHelper {
         // Idempotency check: Ensure move sequence is valid
         if (move.getExpectedMoveSequence() != null) {
             Long currentSequence = cache.getMoveSequence() != null ? cache.getMoveSequence() : 0L;
+
             if (!move.getExpectedMoveSequence().equals(currentSequence)) {
                 throw new StaleMoveException(move.getExpectedMoveSequence(), currentSequence);
             }
         }
 
-        if (!Objects.equals(cache.getWhitePlayerId(), player.getId()) &&
-            !Objects.equals(cache.getBlackPlayerId(), player.getId())) {
+        if (
+            !Objects.equals(cache.getWhitePlayerId(), player.getId()) &&
+            !Objects.equals(cache.getBlackPlayerId(), player.getId())
+        ) {
             throw new RoomJoinNotAllowedException(RoomErrorMessage.UNAUTHORIZED_MOVE.getValue());
         }
 
@@ -214,9 +201,9 @@ public class RoomService extends RoomServiceHelper {
     }
 
     public void handleMove(Move move, String roomId, MoveCache cache) {
-        Piece movedPiece = move.getPiece();
         Piece targetPiece = move.getMoveDetails().getTargetPiece();
         Position targetPosition = move.getTo();
+        Piece movedPiece = move.getPiece();
         String fen = cache.getFen();
 
         List<Piece> pieces = MoveUtils.handleMove(FenUtils.parseFenToPieces(fen), move);
@@ -234,7 +221,7 @@ public class RoomService extends RoomServiceHelper {
         cache.setFen(newFen);
         cache.setLastActivity(LocalDateTime.now());
 
-        Long currentSequence = cache.getMoveSequence() != null ? cache.getMoveSequence() : 0L;
+        long currentSequence = cache.getMoveSequence() != null ? cache.getMoveSequence() : 0;
         cache.setMoveSequence(currentSequence + 1);
 
         PieceMovedResponseDTO responseDTO = new PieceMovedResponseDTO()
@@ -246,7 +233,7 @@ public class RoomService extends RoomServiceHelper {
         this.broadcastRoomUpdate(roomId, responseDTO);
 
         // Publish to Redis Pub/Sub for other server instances
-        redisEventPublisher.publishMoveEvent(roomId, responseDTO);
+        redisEventPublisher.publishRoomEvent(roomId, EventType.MOVE, responseDTO);
 
         if (checkMate) {
             Room room = this.roomRepository.findByCode(roomId).orElseThrow(() -> new RoomNotFoundException(roomId));
@@ -256,8 +243,8 @@ public class RoomService extends RoomServiceHelper {
             GameStatus whoWon = Objects.equals(move.getMoveDetails().getTargetPiece().getColor(), "w") ?
                 GameStatus.BLACK_WON :
                 GameStatus.WHITE_WON;
-            room.setRoomStatus(RoomStatus.OCCUPIED);
             room.setGameStatus(whoWon);
+            room.setRoomStatus(RoomStatus.OCCUPIED);
 
             AuthenticatedUserDTO whitePlayerDTO = null, blackPlayerDTO = null;
 
@@ -278,7 +265,10 @@ public class RoomService extends RoomServiceHelper {
             this.userService.updateUser(whitePlayer);
             this.userService.updateUser(blackPlayer);
             this.broadcastRoomUpdate(roomId, roomDTO);
+            this.redisEventPublisher.publishRoomUpdate(roomId, roomDTO);
+
             this.broadcastRoomUpdate(roomId, "Game has ended.");
+            this.redisEventPublisher.publishMessage(roomId, "Game has ended.");
             this.roomRepository.save(room);
         } else {
             this.redisGameService.saveMoveCache(roomId, cache);
@@ -303,18 +293,20 @@ public class RoomService extends RoomServiceHelper {
 
         String message = "Player " + user.getUsername() + " joined the room.";
         this.broadcastRoomUpdate(code, message);
+        this.redisEventPublisher.publishMessage(code, message);
 
         user.setInGame(true);
         this.userService.updateUser(user);
 
         if (
             room.getWhitePlayer() != null &&
-                room.getBlackPlayer() != null &&
-                room.getGameStatus() != GameStatus.IN_PROGRESS
+            room.getBlackPlayer() != null &&
+            room.getGameStatus() != GameStatus.IN_PROGRESS
         ) {
             room.setGameStatus(GameStatus.IN_PROGRESS);
             this.roomRepository.save(room);
             this.broadcastRoomUpdate(room.getCode(), "Game resumed.");
+            this.redisEventPublisher.publishMessage(room.getCode(), "Game resumed.");
         }
 
         AuthenticatedUserDTO whitePlayerDTO = null, blackPlayerDTO = null;
@@ -322,12 +314,14 @@ public class RoomService extends RoomServiceHelper {
         if (room.getWhitePlayer() != null) {
             whitePlayerDTO = this.getAuthenticatedUserDto(room.getWhitePlayer());
         }
+
         if (room.getBlackPlayer() != null) {
             blackPlayerDTO = this.getAuthenticatedUserDto(room.getBlackPlayer());
         }
 
         RoomDTO roomDTO = this.getRoomDto(room, whitePlayerDTO, blackPlayerDTO);
         this.broadcastRoomUpdate(code, roomDTO);
+        this.redisEventPublisher.publishRoomUpdate(code, roomDTO);
     }
 
     @Retryable(
@@ -336,11 +330,11 @@ public class RoomService extends RoomServiceHelper {
         backoff = @Backoff(delay = 100, multiplier = 2)
     )
     public RoomDTO handlePlayerLeaveRoom(String code, User user) {
-        Room room = this.roomRepository.findByCode(code)
-            .orElseThrow(() -> new RoomNotFoundException(code));
+        Room room = this.roomRepository.findByCode(code).orElseThrow(() -> new RoomNotFoundException(code));
 
         String message = "Player " + user.getUsername() + " left the room.";
         this.broadcastRoomUpdate(code, message);
+        this.redisEventPublisher.publishMessage(code, message);
 
         user.setInGame(false);
         this.userService.updateUser(user);
@@ -349,6 +343,7 @@ public class RoomService extends RoomServiceHelper {
             room.setGameStatus(GameStatus.PAUSED);
             this.roomRepository.save(room);
             this.broadcastRoomUpdate(room.getCode(), "Game paused.");
+            this.redisEventPublisher.publishMessage(room.getCode(), "Game paused.");
         }
 
         AuthenticatedUserDTO whitePlayerDTO = null, blackPlayerDTO = null;
@@ -363,6 +358,7 @@ public class RoomService extends RoomServiceHelper {
 
         RoomDTO roomDTO = this.getRoomDto(room, whitePlayerDTO, blackPlayerDTO);
         this.broadcastRoomUpdate(code, roomDTO);
+        this.redisEventPublisher.publishRoomUpdate(code, roomDTO);
         return roomDTO;
     }
 
@@ -374,23 +370,11 @@ public class RoomService extends RoomServiceHelper {
         User user = this.userService.getUserById(id);
         return this.getAuthenticatedUserDto(user);
     }
+
     private AuthenticatedUserDTO getAuthenticatedUserDto(User user) {
         return new AuthenticatedUserDTO().setEmail(user.getEmail())
             .setUsername(user.getUsername())
             .setInGame(user.getInGame());
-    }
-
-    private RoomDTO getRoomDto(Room room, AuthenticatedUserDTO whitePlayerDTO, AuthenticatedUserDTO blackPlayerDTO) {
-        return new RoomDTO()
-            .setCode(room.getCode())
-            .setCapturedPieces(room.getCapturedPieces())
-            .setFen(room.getFen())
-            .setBlackPlayer(blackPlayerDTO)
-            .setWhitePlayer(whitePlayerDTO)
-            .setId(room.getId())
-            .setLastActivity(room.getLastActivity())
-            .setRoomStatus(room.getRoomStatus())
-            .setGameStatus(room.getGameStatus());
     }
 
     // TODO: Find a better way to generate Unique RoomID
