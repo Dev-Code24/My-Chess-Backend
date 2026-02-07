@@ -9,7 +9,6 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
- * Configuration for distributed scheduled task locking using ShedLock.
  * Ensures that only one server instance executes a scheduled task at a time.
  */
 @Configuration
@@ -17,7 +16,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableSchedulerLock(defaultLockAtMostFor = "10m")
 public class SchedulerConfig {
   /**
-   * Creates a Redis-based lock provider for ShedLock.
    * Uses Redis to coordinate which server instance can execute scheduled tasks.
    */
   @Bean

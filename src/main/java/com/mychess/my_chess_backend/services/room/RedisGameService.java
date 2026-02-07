@@ -55,8 +55,7 @@ public class RedisGameService {
   }
 
   /**
-   * Fallback method when Redis is unavailable.
-   * Saves move cache directly to PostgreSQL database.
+   * Fallback method when Redis is unavailable, saves move cache directly to  database.
    */
   @RateLimiter(name = "databaseWrites", fallbackMethod = "rejectOverload")
   @Bulkhead(name = "databaseWrites", fallbackMethod = "rejectOverload")
