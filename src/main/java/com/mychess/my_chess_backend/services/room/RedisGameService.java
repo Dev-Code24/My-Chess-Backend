@@ -3,6 +3,7 @@ package com.mychess.my_chess_backend.services.room;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mychess.my_chess_backend.dtos.redis.MoveCache;
 import com.mychess.my_chess_backend.exceptions.room.RoomNotFoundException;
+import com.mychess.my_chess_backend.exceptions.room.SystemOverloadException;
 import com.mychess.my_chess_backend.models.Room;
 import com.mychess.my_chess_backend.repositories.RoomRepository;
 import io.github.resilience4j.bulkhead.annotation.Bulkhead;
@@ -81,6 +82,6 @@ public class RedisGameService {
 
   public void rejectOverload(String code, MoveCache cache, Throwable t) {
     log.error("Database overloaded, rejecting move save for room: {}. Reason: {}", code, t.getMessage());
-    throw new RuntimeException("System overloaded. Please retry in a moment. Original error: " + t.getMessage());
+    throw new SystemOverloadException("Server is currently at maximum capacity. Please try again in a moment.", t);
   }
 }

@@ -57,6 +57,7 @@ public class RoomServiceHelper {
             .setId(room.getId())
             .setLastActivity(room.getLastActivity())
             .setRoomStatus(room.getRoomStatus())
-            .setGameStatus(room.getGameStatus());
+            .setGameStatus(room.getGameStatus())
+            .setMoveSequence(room.getMoveSequence());
     }
 }
