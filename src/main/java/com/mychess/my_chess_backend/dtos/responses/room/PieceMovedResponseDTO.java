@@ -13,4 +13,5 @@ import lombok.experimental.Accessors;
 public class PieceMovedResponseDTO {
     private Move move;
     private String fen;
+    private Long moveSequence;
 }

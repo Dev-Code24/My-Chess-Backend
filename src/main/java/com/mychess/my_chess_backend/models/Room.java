@@ -47,4 +47,11 @@ public class Room {
     private UUID blackPlayer;
 
     private LocalDateTime lastActivity;
+
+    @Builder.Default
+    @Column(name = "move_sequence", nullable = false)
+    private Long moveSequence = 0L;
+
+    @Version
+    private Long version;
 }
